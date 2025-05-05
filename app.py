@@ -29,7 +29,7 @@ app = Flask(__name__)
 
 # --- API Keys / Model Configuration ---
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-GEMINI_MODEL_NAME = os.getenv('GEMINI_MODEL_NAME', 'gemini-1.5-flash-latest') # Allow override via env
+GEMINI_MODEL_NAME = os.getenv('GEMINI_MODEL_NAME', 'gemini-1.5-pro-latest') # Allow override via env
 WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
 model = None # Initialize model variable
 
