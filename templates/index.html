@@ -1,51 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F.R.I.D.A.Y. Assistant</title>
-    <!-- Icons, Chart.js, OpenLayers -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.1.0/ol.css">
-    <script src="https://cdn.jsdelivr.net/npm/ol@v9.1.0/dist/ol.js"></script>
-    <!-- Main Stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Optional Favicon -->
-    <!-- <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}"> -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F.R.I.D.A.Y. Interface</title>
+  <!-- Add Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- Add Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Add OpenLayers library -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.1.0/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@v9.1.0/dist/ol.js"></script>
+  <!-- Link main stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Optional Favicon -->
+  <!-- <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}"> -->
+
 </head>
 <body>
-    <!-- Removed outer .container -->
-
-    <header>
-        <!-- Visualization placeholder -->
-        <div id="ai-visualization">
-            <div class="pulse-ring"></div>
-        </div>
-        <h1>F.R.I.D.A.Y.</h1>
-        <div id="status-indicator">Idle</div>
-        <!-- Error display area (now positioned by CSS) -->
-         <div id="error-message" class="error-display"></div>
-    </header>
-
-    <!-- ****** ADD THIS DIV ****** -->
-    <main id="main-content">
-        <!-- Content will be dynamically added here by script.js -->
-        <!-- Initial greeting will be placed here by JS -->
-    </main>
-    <!-- ************************** -->
-
-    <div id="input-area">
-        <button id="listen-button" title="Start Listening (Requires HTTPS/localhost & Mic Permission)">
-            <i class="fas fa-microphone"></i>
-        </button>
-        <input type="text" id="user-input" placeholder="Type your message or click the mic..." autocomplete="off">
-        <button id="send-button" title="Send Message">
-            <i class="fas fa-paper-plane"></i>
-        </button>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">F</div>
+        F.R.I.D.A.Y. INTERFACE
+      </div>
+      <div class="status">
+        <div class="status-dot"></div>
+        <span id="status-text">SYSTEMS ONLINE</span> <!-- Changed span ID for status text -->
+      </div>
     </div>
 
-    <!-- Main JavaScript file -->
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <div class="main-content">
+      <div class="sidebar">
+        <!-- Sidebar Menu Items (Static for now) -->
+        <div class="menu-item active"> <div class="menu-icon">⌂</div> <div class="menu-text">Dashboard</div> </div>
+        <div class="menu-item"> <div class="menu-icon">🛡️</div> <div class="menu-text">Armor Systems</div> </div>
+        <div class="menu-item"> <div class="menu-icon">📊</div> <div class="menu-text">Analytics</div> </div>
+        <div class="menu-item"> <div class="menu-icon">🔍</div> <div class="menu-text">Reconnaissance</div> </div>
+        <div class="menu-item"> <div class="menu-icon">⚡</div> <div class="menu-text">Power Systems</div> </div>
+        <div class="menu-item"> <div class="menu-icon">🔧</div> <div class="menu-text">Settings</div> </div>
+      </div>
+
+      <div class="dashboard">
+        <!-- === Assistant Output Area === -->
+        <div id="assistant-output-area">
+            <!-- Content (text, charts, maps) will be dynamically added here -->
+            <!-- Initial greeting will be placed here by JS -->
+        </div>
+        <!-- ============================ -->
+
+        <h2 class="section-title">SYSTEM OVERVIEW</h2>
+        <div class="widgets-container">
+           <!-- Static Widgets (Keep as is from provided HTML) -->
+           <div class="widget"> <div class="widget-header"><div class="widget-title">POWER SYSTEMS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Arc Reactor</div><div>98%</div></div><div class="progress-bar"><div class="progress-value" style="width: 98%"></div></div> <div class="status-item"><div>Backup Power</div><div>84%</div></div><div class="progress-bar"><div class="progress-value" style="width: 84%"></div></div> <div class="status-item"><div>Efficiency</div><div>92%</div></div><div class="progress-bar"><div class="progress-value" style="width: 92%"></div></div> </div></div> </div>
+           <div class="widget"> <div class="widget-header"><div class="widget-title">DIAGNOSTICS</div></div> <div class="widget-content"><div class="graph-container"><div class="graph-line"> <div class="graph-bar" style="height: 40%; animation-delay: 0.1s"></div><div class="graph-bar" style="height: 60%; animation-delay: 0.2s"></div><div class="graph-bar" style="height: 30%; animation-delay: 0.3s"></div><div class="graph-bar" style="height: 80%; animation-delay: 0.4s"></div><div class="graph-bar" style="height: 50%; animation-delay: 0.5s"></div><div class="graph-bar" style="height: 70%; animation-delay: 0.6s"></div><div class="graph-bar" style="height: 45%; animation-delay: 0.7s"></div><div class="graph-bar" style="height: 65%; animation-delay: 0.8s"></div><div class="graph-bar" style="height: 85%; animation-delay: 0.9s"></div><div class="graph-bar" style="height: 35%; animation-delay: 1.0s"></div></div></div></div> </div>
+           <div class="widget"> <div class="widget-header"><div class="widget-title">SECURITY PROTOCOLS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Firewall</div><div>Active</div></div> <div class="status-item"><div>Encryption</div><div>Level 3</div></div> <div class="status-item"><div>Threat Detection</div><div>Scanning</div></div> <div class="status-item"><div>Last Breach</div><div>Never</div></div> </div></div> </div>
+        </div>
+
+        <h2 class="section-title">MARK XLVI SYSTEMS</h2>
+        <div class="widgets-container">
+           <!-- Static Widgets (Keep as is from provided HTML) -->
+            <div class="widget"> <div class="widget-header"><div class="widget-title">ARMOR INTEGRITY</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Front Plating</div><div>100%</div></div><div class="progress-bar"><div class="progress-value" style="width: 100%"></div></div> <div class="status-item"><div>Back Plating</div><div>100%</div></div><div class="progress-bar"><div class="progress-value" style="width: 100%"></div></div> <div class="status-item"><div>Helmet</div><div>100%</div></div><div class="progress-bar"><div class="progress-value" style="width: 100%"></div></div> </div></div> </div>
+            <div class="widget"> <div class="widget-header"><div class="widget-title">WEAPON SYSTEMS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Repulsors</div><div>Ready</div></div> <div class="status-item"><div>Unibeam</div><div>Charged</div></div> <div class="status-item"><div>Missiles</div><div>6 Armed</div></div> <div class="status-item"><div>Smart Targeting</div><div>Online</div></div> </div></div> </div>
+            <div class="widget"> <div class="widget-header"><div class="widget-title">FLIGHT SYSTEMS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Thrusters</div><div>Ready</div></div> <div class="status-item"><div>Stabilizers</div><div>Calibrated</div></div> <div class="status-item"><div>Max Speed</div><div>Mach 3</div></div> <div class="status-item"><div>Navigation</div><div>Global</div></div> </div></div> </div>
+        </div>
+
+        <!-- Central Animation (Keep as is) -->
+        <div class="circle-container">
+          <div class="circle"></div> <div class="circle"></div> <div class="circle"></div>
+          <div class="arc"></div> <div class="arc"></div>
+        </div>
+      </div> <!-- End .dashboard -->
+    </div> <!-- End .main-content -->
+
+    <div class="footer">
+      <div>STARK INDUSTRIES</div>
+      <div class="command-input">
+         <!-- Add Listen Button -->
+         <button id="listen-button" class="footer-button listen-btn" title="Start Listening (Requires HTTPS/localhost & Mic Permission)">
+            <i class="fas fa-microphone-alt"></i> <!-- Use different mic icon if desired -->
+         </button>
+         <!-- Update Input ID -->
+        <input id="user-input" type="text" placeholder="Enter command..." autofocus>
+      </div>
+      <!-- Update Execute Button ID -->
+      <button id="send-button" class="footer-button">Execute</button>
+    </div><!-- End .footer -->
+  </div> <!-- End .container -->
+
+  <!-- Arc Reactor Element (Keep as is) -->
+  <div id="arc-reactor"></div>
+
+  <!-- Main JavaScript file -->
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

@@ -1,209 +1,234 @@
 /* static/css/style.css */
+/* Import Font Awesome if not already included via CDN in HTML */
+/* @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'); */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;500&display=swap');
 
 :root {
-    --primary-bg: #0a192f;
-    --secondary-bg: #112240;
-    --text-color: #ccd6f6;
-    --text-secondary-color: #8892b0;
-    --accent-color: #64ffda;
-    --accent-glow: rgba(100, 255, 218, 0.4);
-    --input-bg: #1e3a5f;
+    /* Adjusted color palette slightly */
+    --primary-bg: #0a0e17;
+    --secondary-bg: #0d1322; /* Sidebar/Footer BG */
+    --widget-bg: #101830;
+    --text-color: #e0e0e0;
+    --text-secondary-color: #b8c7e0;
+    --accent-color: #ff5722; /* Orange accent */
+    --accent-glow: rgba(255, 87, 34, 0.5);
+    --input-bg: #1a2743;
+    --border-color: #2a3956;
     --button-bg: var(--accent-color);
-    --button-text: var(--primary-bg);
-    /* Remove message-specific backgrounds */
-    --visualization-bg: rgba(17, 34, 64, 0.8); /* Slightly more opaque */
-    --visualization-border: rgba(100, 255, 218, 0.4); /* Brighter border */
-    --error-color: #ff8080;
-    --error-bg: rgba(255, 107, 107, 0.1);
+    --button-text: white;
+    --notification-bg: #1a2743;
+    --error-color: #ff8080; /* Use for error text in notifications */
     --scrollbar-thumb: var(--accent-color);
     --scrollbar-track: var(--input-bg);
     --base-font-size: 16px;
-    --content-font-size: 1.1rem; /* Larger font for main content */
+    --content-font-size: 1rem; /* Slightly smaller for widgets/output */
 }
 
 /* Basic Reset */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
 html { scroll-behavior: smooth; }
 
 body {
-    font-family: 'Roboto', sans-serif;
-    background: linear-gradient(135deg, #0a192f 0%, #112240 50%, #0a192f 100%); /* Gradient Background */
-    background-size: 400% 400%; /* For animation */
-    animation: gradientBG 25s ease infinite; /* Background animation */
-    color: var(--text-color);
-    font-size: var(--base-font-size);
-    display: flex; /* Use flex for main layout */
-    flex-direction: column; /* Stack header, content, input */
-    height: 100vh; /* Full viewport height */
-    width: 100vw; /* Full viewport width */
-    overflow: hidden; /* Prevent body scrolling */
+    background-color: var(--primary-bg); color: var(--text-color); overflow: hidden;
+    height: 100vh; font-size: var(--base-font-size);
 }
 
-@keyframes gradientBG {
-	0% { background-position: 0% 50%; }
-	50% { background-position: 100% 50%; }
-	100% { background-position: 0% 50%; }
-}
+.container { height: 100vh; display: flex; flex-direction: column; }
 
-/* Removed .container - Body is now the main container */
-
-/* --- Header --- (Relatively unchanged) */
-header {
-    padding: 15px 30px; background-color: rgba(10, 25, 47, 0.8); /* Slightly transparent */
-    backdrop-filter: blur(5px); /* Glass effect */
-    border-bottom: 1px solid var(--accent-color); text-align: center; position: relative;
+/* --- Header --- */
+.header {
+    padding: 15px 25px; background-color: var(--secondary-bg); color: var(--accent-color); display: flex;
+    justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);
     flex-shrink: 0; z-index: 10;
 }
-header h1 { font-family: 'Orbitron', sans-serif; color: var(--accent-color); margin: 0; font-size: 2.1em; text-shadow: 0 0 12px var(--accent-glow); }
-#status-indicator { font-size: 0.85em; color: var(--text-secondary-color); margin-top: 6px; min-height: 1.2em; transition: color 0.3s ease; font-weight: 300;}
-#ai-visualization { position: absolute; top: 50%; left: 30px; transform: translateY(-50%); width: 38px; height: 38px; }
-.pulse-ring { width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--accent-color); box-shadow: 0 0 15px var(--accent-glow); animation: pulse 2s infinite ease-out; animation-play-state: paused; }
-@keyframes pulse { 0%{transform:scale(.8);opacity:.7;} 50%{opacity:1;box-shadow:0 0 20px var(--accent-glow)} 100%{transform:scale(1.2);opacity:0;} }
+.logo { font-size: 22px; font-weight: bold; display: flex; align-items: center; font-family: 'Orbitron', sans-serif; }
+.logo-icon { width: 35px; height: 35px; background-color: var(--accent-color); border-radius: 50%; margin-right: 12px; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 16px; }
+.status { display: flex; align-items: center; color: var(--text-secondary-color); font-size: 0.9em; }
+.status-dot { width: 10px; height: 10px; background-color: #4CAF50; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 8px #4CAF50; animation: pulse-dot 2s infinite; }
+#status-text { transition: color 0.3s ease; }
+@keyframes pulse-dot { 0%,100%{opacity:1; transform: scale(1);} 50%{opacity:0.6; transform: scale(0.9);} }
 
-/* --- Main Content Area (Replaces Chatbox) --- */
-#main-content {
-    flex-grow: 1; /* Takes up remaining vertical space */
-    padding: 30px; /* Generous padding */
-    overflow-y: auto; /* Allow scrolling ONLY for this area if content overflows */
+/* --- Main Content Area --- */
+.main-content { display: flex; flex: 1; overflow: hidden; }
+
+/* --- Sidebar --- */
+.sidebar {
+    width: 220px; background-color: var(--secondary-bg); border-right: 1px solid var(--border-color);
+    padding: 20px 0; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 3px; }
+.menu-item { padding: 12px 20px; color: var(--text-secondary-color); cursor: pointer; display: flex; align-items: center; transition: all 0.2s ease-in-out; border-left: 3px solid transparent; /* For active state */ }
+.menu-item:hover { background-color: var(--input-bg); color: var(--accent-color); }
+.menu-item.active { background-color: var(--input-bg); color: var(--accent-color); border-left-color: var(--accent-color); }
+.menu-icon { margin-right: 12px; font-size: 18px; width: 20px; text-align: center; }
+.menu-text { font-size: 0.9rem; }
+
+/* --- Dashboard (Main Area) --- */
+.dashboard {
+    flex: 1; padding: 25px; overflow-y: auto; position: relative;
+    scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.dashboard::-webkit-scrollbar { width: 6px; }
+.dashboard::-webkit-scrollbar-track { background: transparent; }
+.dashboard::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 3px; }
+
+.section-title { font-size: 1.1rem; margin-bottom: 18px; color: var(--accent-color); font-weight: 500; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+
+/* --- Assistant Output Area --- */
+#assistant-output-area {
+    width: 100%;
+    margin-bottom: 30px; /* Space below output before widgets */
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center content horizontally */
-    justify-content: center; /* Center content vertically (initially) */
-    position: relative; /* For potential absolute positioned elements inside */
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    gap: 15px; /* Space between output elements */
 }
-#main-content::-webkit-scrollbar { width: 8px; }
-#main-content::-webkit-scrollbar-track { background: transparent; } /* Make track transparent */
-#main-content::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 4px; }
-
-/* --- Content Placeholders within Main Area --- */
-/* These will hold the dynamically added content */
+/* Wrapper for each piece of content from assistant */
 .content-wrapper {
     width: 100%;
-    max-width: 900px; /* Max width for readability */
-    margin-bottom: 25px; /* Space below each content block */
-    padding: 25px; /* Padding inside the wrapper */
-    border-radius: 12px;
-    background-color: var(--visualization-bg);
-    border: 1px solid var(--visualization-border);
-    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
-    opacity: 0; /* Start hidden */
-    transform: scale(0.95) translateY(20px); /* Start scaled down and lower */
-    animation: content-appear 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; /* Smooth appear animation */
+    padding: 20px;
+    border-radius: 10px;
+    background-color: var(--widget-bg); /* Use widget background */
+    border: 1px solid var(--border-color);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    opacity: 0; transform: translateY(15px);
+    animation: content-appear 0.5s ease-out forwards;
 }
-.content-wrapper:last-child {
-    margin-bottom: 0; /* No margin on the very last item */
-}
+@keyframes content-appear { to { opacity: 1; transform: translateY(0); } }
 
-@keyframes content-appear {
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-/* Specific placeholders */
-#response-text-area { /* Styles for the text response */
+/* Text Response Area Styling */
+#response-text-area {
     font-size: var(--content-font-size);
     line-height: 1.6;
     color: var(--text-color);
-    text-align: left; /* Or center if preferred */
-    white-space: pre-wrap; /* Preserve line breaks from AI */
+    white-space: pre-wrap; /* Preserve line breaks */
 }
-#response-text-area p { /* Add space between paragraphs if AI generates them */
-    margin-bottom: 1em;
-}
-#response-text-area p:last-child {
-    margin-bottom: 0;
-}
+#response-text-area p { margin-bottom: 1em; }
+#response-text-area p:last-child { margin-bottom: 0; }
+#response-text-area strong { color: var(--accent-color); font-weight: 500; }
+#response-text-area em { color: var(--text-secondary-color); font-style: italic; }
 
-
-#chart-placeholder, #map-placeholder {
-    /* Containers will be populated by JS */
-    width: 100%; /* Take full width of wrapper */
+/* Chart/Map Placeholders (wrappers for viz) */
+#chart-placeholder, #map-placeholder { /* These are .content-wrapper divs */
+    padding: 15px; /* Padding around the viz */
 }
-
-/* --- Visualizations (Specific Styles) --- */
 /* Chart canvas */
 #chart-placeholder canvas { max-width: 100%; height: auto !important; }
-
-/* Map container */
-#map-placeholder .map-container { /* Target the map div created by JS */
-    height: 350px; /* Increased map height */
-    width: 100%;
-    border-radius: 8px; /* Inner rounding */
-    border: none; /* Border is on the wrapper now */
-    overflow: hidden;
-    position: relative;
-    background-color: var(--primary-bg); /* Loading background */
+/* Map container (the div map initializes on) */
+#map-placeholder .map-inner-container { /* Target the div created by JS */
+    height: 350px; width: 100%; border-radius: 6px; overflow: hidden; position: relative; background-color: var(--primary-bg);
 }
 /* Style OL controls */
-#map-placeholder .map-container .ol-zoom { background-color: rgba(10,25,47,0.7); border-radius: 4px; top:auto; bottom:10px; left:10px; }
-#map-placeholder .map-container .ol-zoom-in, #map-placeholder .map-container .ol-zoom-out { background-color: var(--input-bg); color: var(--accent-color); margin:1px; font-size:1.1em; font-weight:bold; width: 1.5em; height: 1.5em; }
-#map-placeholder .map-container .ol-zoom-in:hover, #map-placeholder .map-container .ol-zoom-out:hover { background-color: var(--secondary-bg); }
-#map-placeholder .map-container .ol-attribution { background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:3px; bottom:5px; right:5px; font-size:0.7em; position:absolute; color:var(--text-secondary-color); }
-#map-placeholder .map-container .ol-attribution a { color: var(--accent-color); text-decoration: none; }
-#map-placeholder .map-container .ol-scale-line { background-color: rgba(10,25,47,0.7); border-radius: 3px; padding: 3px 6px; bottom: 10px; right: 10px; position: absolute;}
-#map-placeholder .map-container .ol-scale-line-inner { border-color: var(--text-secondary-color); color: var(--text-secondary-color); font-size: 0.7em; }
+#map-placeholder .map-inner-container .ol-zoom { background-color: rgba(10,25,47,0.7); border-radius: 4px; top:auto; bottom:10px; left:10px; }
+#map-placeholder .map-inner-container .ol-zoom-in, #map-placeholder .map-inner-container .ol-zoom-out { background-color: var(--input-bg); color: var(--accent-color); margin:1px; font-size:1.1em; font-weight:bold; width: 1.5em; height: 1.5em; }
+#map-placeholder .map-inner-container .ol-zoom-in:hover, #map-placeholder .map-inner-container .ol-zoom-out:hover { background-color: var(--secondary-bg); }
+#map-placeholder .map-inner-container .ol-attribution { background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:3px; bottom:5px; right:5px; font-size:0.7em; position:absolute; color:var(--text-secondary-color); }
+#map-placeholder .map-inner-container .ol-attribution a { color: var(--accent-color); text-decoration: none; }
+#map-placeholder .map-inner-container .ol-scale-line { background-color: rgba(10,25,47,0.7); border-radius: 3px; padding: 3px 6px; bottom: 10px; right: 10px; position: absolute;}
+#map-placeholder .map-inner-container .ol-scale-line-inner { border-color: var(--text-secondary-color); color: var(--text-secondary-color); font-size: 0.7em; }
 
-/* --- Input Area --- (Relatively unchanged, slightly larger) */
-#input-area {
-    display: flex; padding: 18px 30px; border-top: 1px solid var(--accent-color);
-    background-color: rgba(10, 25, 47, 0.8); /* Match header transparency */
-    backdrop-filter: blur(5px);
-    gap: 12px; flex-shrink: 0; align-items: center; z-index: 10;
+/* --- Static Widgets --- (Mostly keep original styles) */
+.widgets-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.widget { background-color: var(--widget-bg); border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border-color); transition: all 0.3s; }
+.widget:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.2); transform: translateY(-2px); }
+.widget-header { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+.widget-title { font-size: 1rem; color: var(--text-secondary-color); text-transform: uppercase; letter-spacing: 0.5px; }
+.widget-content { min-height: 120px; display: flex; flex-direction: column; justify-content: center; } /* Adjusted height */
+.system-status { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 20px; font-size: 0.9rem; }
+.status-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+.progress-bar { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; margin-top: 5px; overflow: hidden; }
+.progress-value { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent-color), #ff9800); width: 0%; transition: width 1s ease-in-out; }
+.graph-container { height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+.graph-line { position: absolute; bottom: 0; left: 0; height: 80px; width: 100%; display: flex; align-items: flex-end; }
+.graph-bar { flex: 1; background: linear-gradient(0deg, var(--accent-color), transparent); margin: 0 2px; border-radius: 2px 2px 0 0; animation: equalize 1.5s infinite alternate; }
+@keyframes equalize { 0%{height:20%} 100%{height:100%} }
+
+/* --- Central Animation --- (Keep original styles) */
+.circle-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; pointer-events: none; opacity: 0.15; } /* Reduced opacity */
+.circle { position: absolute; border-radius: 50%; border: 2px solid rgba(255, 87, 34, 0.5); width: 100%; height: 100%; animation: pulse 3s infinite; }
+.circle:nth-child(2) { animation-delay: 0.5s; } .circle:nth-child(3) { animation-delay: 1s; }
+.arc { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 4px solid transparent; border-top: 4px solid var(--accent-color); animation: spin 3s linear infinite; }
+.arc:nth-child(4) { border-right: 4px solid #ff9800; animation-duration: 2s; }
+.arc:nth-child(5) { border-bottom: 4px solid #2196F3; animation-duration: 4s; animation-direction: reverse; }
+@keyframes pulse { /* Keep existing */ } @keyframes spin { /* Keep existing */ }
+
+/* --- Footer / Input Area --- */
+.footer {
+    padding: 15px 30px; background-color: var(--secondary-bg); border-top: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10;
 }
-#user-input { flex-grow: 1; padding: 14px 18px; border: 1px solid var(--accent-color); border-radius: 25px; background-color: var(--input-bg); color: var(--text-color); font-size: 1rem; outline: none; transition: box-shadow 0.3s ease; }
-#user-input:focus, #user-input:focus-visible { box-shadow: 0 0 12px var(--accent-glow); border-color: var(--accent-color); }
-#user-input::placeholder { color: var(--text-secondary-color); opacity: 0.8; }
-#input-area button { background-color: var(--button-bg); color: var(--button-text); border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 1.3em; cursor: pointer; transition: all 0.2s ease; display: flex; justify-content: center; align-items: center; flex-shrink: 0; outline: none; }
-#input-area button:hover { background-color: #4ae4c4; transform: scale(1.1); box-shadow: 0 0 10px var(--accent-glow); }
-#input-area button:active { transform: scale(0.95); }
-#input-area button:disabled { opacity: 0.5; cursor: not-allowed; transform: scale(1); box-shadow: none; background-color: var(--input-bg); color: var(--text-secondary-color); }
-#input-area button:focus-visible { box-shadow: 0 0 0 3px var(--primary-bg), 0 0 0 5px var(--accent-color); }
-#listen-button.listening i { color: #ff4d4d; animation: micPulse 1.5s infinite ease-in-out; }
-@keyframes micPulse { /* Keep existing */ }
+.footer > div:first-child { color: var(--text-secondary-color); font-size: 0.8em; } /* Stark Industries text */
 
-/* --- Error Display --- (Positioned below header) */
-.error-display {
-    color: var(--error-color); background-color: var(--error-bg); border: 1px solid var(--error-color);
-    padding: 10px 30px; /* Match header padding */
-    border-radius: 0; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; /* Round bottom corners */
-    font-size: 0.9em; text-align: center; flex-shrink: 0; transition: all 0.3s ease-in-out;
-    border-top: none; /* Remove top border */
-    /* Position absolutely below header */
-    position: absolute;
-    top: 78px; /* Adjust based on actual header height */
-    left: 0;
-    right: 0;
-    width: 90%; /* Match container width initially */
-    max-width: 800px; /* Match container max-width */
-    margin: 0 auto; /* Center it */
-    z-index: 5; /* Below header, above main content */
-    opacity: 0; /* Hidden by default */
-    max-height: 0;
-    overflow: hidden;
+.command-input { display: flex; flex: 1; margin: 0 15px; align-items: center; gap: 10px; } /* Add gap */
+/* Input field */
+#user-input { flex-grow: 1; background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 10px 18px; color: var(--text-color); outline: none; font-size: 0.95rem; transition: all 0.3s ease; }
+#user-input:focus, #user-input:focus-visible { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.2); }
+#user-input::placeholder { color: var(--text-secondary-color); opacity: 0.7; }
+/* Buttons in footer */
+.footer-button { background-color: var(--button-bg); color: var(--button-text); border: none; border-radius: 20px; padding: 9px 18px; cursor: pointer; transition: background-color 0.3s, transform 0.2s; font-size: 0.9rem; font-weight: 500; outline: none; }
+.footer-button:hover { background-color: #ff7043; transform: scale(1.05); }
+.footer-button:active { transform: scale(0.98); }
+.footer-button:disabled { background-color: var(--input-bg) !important; color: var(--text-secondary-color) !important; opacity: 0.6; cursor: not-allowed; transform: scale(1); }
+.footer-button:focus-visible { box-shadow: 0 0 0 3px var(--primary-bg), 0 0 0 5px var(--accent-color); }
+/* Specific Listen Button */
+.listen-btn { padding: 0; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.1em; flex-shrink: 0; }
+.listen-btn i { line-height: 1; } /* Center icon */
+.listen-btn.listening { background-color: #ff4d4d !important; color: white !important; }
+.listen-btn.listening i { animation: micPulseFooter 1.5s infinite ease-in-out; }
+@keyframes micPulseFooter { 0%{transform:scale(1)} 50%{transform:scale(1.1)} 100%{transform:scale(1)} }
+
+/* --- Notification / Error --- */
+.notification {
+    position: fixed; /* Use fixed to overlay everything */
+    top: 80px; /* Below header */
+    right: 25px;
+    background-color: var(--notification-bg);
+    border-left: 4px solid var(--accent-color);
+    padding: 15px 20px; border-radius: 6px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 1000; /* Ensure it's on top */
+    max-width: 320px;
+    opacity: 0; /* Hidden initially */
+    transform: translateX(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none; /* Don't block clicks unless visible */
 }
-.error-display.visible { /* Add this class via JS to show */
-     opacity: 1;
-     max-height: 100px; /* Or enough for content */
-     padding-top: 10px;
-     padding-bottom: 10px;
+.notification.visible {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
 }
+.notification-title { font-weight: bold; margin-bottom: 5px; color: var(--accent-color); }
+.notification div:last-child { font-size: 0.9em; color: var(--text-color); } /* Message text */
+/* Error specific notification */
+.notification.error { border-left-color: var(--error-color); }
+.notification.error .notification-title { color: var(--error-color); }
 
+/* --- Arc Reactor --- (Keep original styles) */
+#arc-reactor { position: fixed; bottom: 25px; right: 25px; width: 70px; height: 70px; border-radius: 50%; background-color: var(--widget-bg); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(33, 150, 243, 0.6); z-index: 10; cursor: pointer; border: 1px solid var(--border-color); }
+#arc-reactor::before { content: ""; width: 35px; height: 35px; border-radius: 50%; background: radial-gradient(circle, #29B6F6 0%, #2196F3 50%, transparent 70%); box-shadow: 0 0 15px #29B6F6; animation: glow 2s infinite alternate; }
+@keyframes glow { 0%{box-shadow:0 0 10px #29B6F6} 100%{box-shadow:0 0 25px #29B6F6} }
 
-/* --- Responsive Adjustments --- */
-@media (max-width: 700px) {
-    header { padding: 12px 20px; } header h1 { font-size: 1.6em; }
-    #ai-visualization { width: 30px; height: 30px; left: 20px; }
-    #main-content { padding: 20px; }
-    .content-wrapper { padding: 15px; margin-bottom: 15px; }
-    #response-text-area { font-size: 1rem; }
-    .map-container { height: 280px; }
-    #input-area { padding: 12px 15px; gap: 8px;}
-    #user-input { padding: 11px 15px; font-size: 0.95rem; border-radius: 20px; }
-    #input-area button { width: 42px; height: 42px; font-size: 1.1em; }
-    .error-display { width: 100%; top: 65px; /* Adjust based on mobile header height */ border-radius: 0; padding: 8px 15px; }
+/* --- Responsive adjustments --- (Mostly keep original) */
+@media (max-width: 900px) { /* Adjust breakpoint */
+     .sidebar { width: 70px; } /* Slightly wider collapsed sidebar */
+     .sidebar:hover .menu-text { display: block; /* Optionally show text on hover */ position: absolute; left: 70px; background: var(--secondary-bg); padding: 12px 15px; border-radius: 0 5px 5px 0; box-shadow: 5px 0 10px rgba(0,0,0,0.2); white-space: nowrap; }
+     .menu-text { display: none; } /* Hide text by default */
+     .menu-item { justify-content: center; }
+     .menu-icon { margin-right: 0; }
+}
+@media (max-width: 768px) {
+     .widgets-container { grid-template-columns: 1fr; } /* Stack widgets */
+     .footer { padding: 10px 15px; }
+     .command-input { margin: 0 10px; }
+     #user-input { padding: 9px 15px; }
+     .footer-button { padding: 8px 15px; }
+     .listen-btn { width: 38px; height: 38px; font-size: 1em; }
+     #arc-reactor { width: 60px; height: 60px; bottom: 15px; right: 15px; }
+     #arc-reactor::before { width: 30px; height: 30px; }
+     .notification { right: 15px; max-width: calc(100% - 30px); }
+     #assistant-output-area { padding-bottom: 15px; } /* Add padding below output */
+     .content-wrapper { padding: 15px; }
+     .map-container { height: 280px; }
 }
