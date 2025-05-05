@@ -1,32 +1,47 @@
 // static/js/script.js
 document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Element References ---
     const chatbox = document.getElementById('chatbox');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
     const listenButton = document.getElementById('listen-button');
     const statusIndicator = document.getElementById('status-indicator');
-    const visualization = document.getElementById('ai-visualization').querySelector('.pulse-ring'); // Target pulse ring directly
+    // Target the pulse-ring div specifically if the outer container doesn't animate
+    const visualization = document.getElementById('ai-visualization')?.querySelector('.pulse-ring');
     const errorMessageDiv = document.getElementById('error-message');
 
+    // --- State Variables ---
     let recognition = null;
     let isListening = false;
     let synth = window.speechSynthesis;
     let assistantSpeaking = false;
+    let currentAssistantMessageElement = null; // Track the element being spoken
 
-    // --- Check for HTTPS/Secure Context ---
-    const isSecureContext = window.isSecureContext; // Check if browser considers context secure (HTTPS or localhost)
-    if (!isSecureContext) {
-        console.warn("Not running in a secure context (HTTPS or localhost). Microphone access (getUserMedia) will likely be blocked by the browser.");
-        // Optionally display a persistent warning to the user on the page
-         displayError("Warning: Microphone may not work over non-secure connections (HTTP). Use HTTPS or localhost.", true); // Make it persistent
+    // --- Feature Detection ---
+    const isSecureContext = window.isSecureContext;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const supportsRecognition = !!SpeechRecognition;
+    const supportsSynthesis = !!synth;
+
+    // --- Initial Checks & Setup ---
+    if (!isSecureContext && supportsRecognition) {
+        console.warn("Not running in a secure context (HTTPS or localhost). Microphone access may be blocked.");
+        displayPersistentError("Warning: Microphone may not work over non-secure connections (HTTP). Use HTTPS or localhost.");
+    }
+    if (!supportsRecognition) {
+        console.warn('Speech Recognition API not supported in this browser.');
+        listenButton.disabled = true;
+        listenButton.title = 'Speech Recognition not supported';
+        updateStatus('Mic not supported');
+    }
+    if (!supportsSynthesis) {
+        console.warn('Speech Synthesis API not supported in this browser.');
     }
 
-
     // --- Initialize Speech Recognition ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    if (supportsRecognition) {
         recognition = new SpeechRecognition();
-        recognition.continuous = false; // Process single utterances
+        recognition.continuous = false;
         recognition.lang = 'en-US';
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
@@ -34,151 +49,138 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.onstart = () => {
             isListening = true;
             listenButton.classList.add('listening');
-            statusIndicator.textContent = 'Listening...';
-            visualization.style.animationPlayState = 'running'; // Ensure animation runs
-            clearError(); // Clear errors when listening starts
+            updateStatus('Listening...');
+            if (visualization) visualization.style.animationPlayState = 'running';
+            clearError();
         };
 
         recognition.onresult = (event) => {
-            const transcript = event.results[event.results.length - 1][0].transcript.trim(); // Get last result
+            const transcript = event.results[event.results.length - 1][0].transcript.trim();
             console.log('Transcript:', transcript);
             if (transcript) {
                 userInput.value = transcript;
-                // Consider adding a small delay or visual cue before sending?
-                sendMessage(); // Automatically send after recognition
+                sendMessage(); // Send recognized text
             }
         };
 
         recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error);
-            let errorMsg = `Speech recognition error: ${event.error}`;
-            if (event.error === 'no-speech') {
-                errorMsg = 'No speech detected. Please try again.';
-            } else if (event.error === 'audio-capture') {
-                errorMsg = 'Microphone error. Check if another app is using it.';
-            } else if (event.error === 'not-allowed') {
-                errorMsg = 'Microphone access denied. Please allow access in browser settings.';
-                 // Also check secure context again here
-                 if (!isSecureContext) {
-                    errorMsg += ' Access requires HTTPS or localhost.';
-                 }
-            } else if (event.error === 'network') {
-                 errorMsg = 'Network error during speech recognition.';
-            } else if (event.error === 'service-not-allowed') {
-                 errorMsg = 'Speech recognition service denied. Check browser/OS settings.';
+            console.error('Speech recognition error:', event.error, event.message);
+            let errorMsg = `Mic error: ${event.error}`;
+            if (event.error === 'no-speech') errorMsg = 'No speech detected. Please try again.';
+            else if (event.error === 'audio-capture') errorMsg = 'Microphone error (capture failed).';
+            else if (event.error === 'not-allowed') {
+                errorMsg = 'Microphone access denied.';
+                if (!isSecureContext) errorMsg += ' Requires HTTPS/localhost.';
             }
-             displayError(errorMsg);
-            statusIndicator.textContent = 'Mic Error';
+            else if (event.error === 'network') errorMsg = 'Network error during speech recognition.';
+            else if (event.error === 'service-not-allowed') errorMsg = 'Speech recognition service unavailable.';
+            else errorMsg = `Mic error: ${event.message || event.error}`; // More generic
+
+            displayError(errorMsg);
+            updateStatus('Mic Error', true); // Mark status as error
         };
 
         recognition.onend = () => {
             isListening = false;
             listenButton.classList.remove('listening');
-             // Only reset status if not currently processing/speaking
-            if (!assistantSpeaking && statusIndicator.textContent !== 'Mic Error') { // Avoid overwriting error status
-                statusIndicator.textContent = 'Idle';
+            // Only reset status if not currently processing/speaking or already showing error
+            if (!assistantSpeaking && !statusIndicator.dataset.error) {
+                updateStatus('Idle');
             }
-             visualization.style.animationPlayState = 'paused'; // Pause animation
+            if (visualization && !assistantSpeaking) visualization.style.animationPlayState = 'paused';
         };
-
-    } else {
-        console.warn('Speech Recognition API not supported in this browser.');
-        listenButton.disabled = true;
-        listenButton.title = 'Speech Recognition not supported';
-        statusIndicator.textContent = 'Mic not supported';
     }
 
     // --- Event Listeners ---
     sendButton.addEventListener('click', sendMessage);
 
     userInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) { // Allow shift+enter for newlines if needed
-            event.preventDefault(); // Prevent default form submission/newline
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
             sendMessage();
         }
     });
 
     listenButton.addEventListener('click', () => {
-        if (!recognition) {
+        if (!supportsRecognition) {
             displayError("Speech recognition not supported by this browser.");
             return;
         }
 
-        if (isListening) {
+        if (isListening) { // Stop listening
             try {
                 recognition.stop();
-            } catch (e) {
+                 // onend will handle state changes
+            } catch (e) { // Handle rare case where stop fails
                  console.error("Error stopping recognition:", e);
-                 // Force reset state if stop fails unexpectedly
-                 isListening = false;
+                 isListening = false; // Force reset state
                  listenButton.classList.remove('listening');
-                 statusIndicator.textContent = 'Idle';
-                 visualization.style.animationPlayState = 'paused';
+                 if (!assistantSpeaking && !statusIndicator.dataset.error) updateStatus('Idle');
+                 if (visualization && !assistantSpeaking) visualization.style.animationPlayState = 'paused';
             }
-
-        } else {
-             // --- ADDED CHECK for mediaDevices ---
-             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                 console.error('navigator.mediaDevices.getUserMedia not available.');
-                 displayError('Microphone access (getUserMedia) is not available. Ensure you are using HTTPS or localhost.');
-                 statusIndicator.textContent = 'Mic Access Error';
-                 return; // Stop here if getUserMedia doesn't exist
-             }
-             // --- END ADDED CHECK ---
-
-             // Request microphone permission explicitly
-             navigator.mediaDevices.getUserMedia({ audio: true })
-                 .then(() => {
-                     console.log("Microphone access granted.");
-                     try {
-                         clearError(); // Clear previous errors
-                         recognition.start();
-                     } catch (e) {
-                         // Handle edge case where start() fails immediately
-                         console.error("Error starting recognition:", e);
-                         displayError(`Error starting microphone: ${e.message}`);
-                         statusIndicator.textContent = 'Mic Start Error';
-                         listenButton.classList.remove('listening');
-                         isListening = false;
-                          visualization.style.animationPlayState = 'paused';
-                     }
-                 })
-                 .catch(err => {
-                     console.error("Microphone access denied or error:", err.name, err.message);
-                     let errorMsg = 'Microphone access denied.';
-                     if(err.name === 'NotAllowedError') {
-                        errorMsg = 'Microphone permission denied. Please allow access in browser settings.';
-                     } else if (err.name === 'NotFoundError') {
-                         errorMsg = 'No microphone found. Please ensure one is connected and enabled.';
-                     } else if (err.name === 'NotReadableError') {
-                         errorMsg = 'Microphone is busy or hardware error occurred.';
-                     } else {
-                        errorMsg = `Error accessing microphone: ${err.message}`;
-                     }
-                      // Add HTTPS hint if relevant
-                     if (!isSecureContext && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) {
-                         errorMsg += ' Access requires HTTPS or localhost.';
-                     }
-                      displayError(errorMsg);
-                     statusIndicator.textContent = 'Mic Access Denied';
-                 });
+        } else { // Start listening
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error('getUserMedia not supported or not available (insecure context?).');
+                displayError('Microphone access (getUserMedia) unavailable. Use HTTPS or localhost.');
+                updateStatus('Mic Access Error', true);
+                return;
+            }
+            // Check/Request microphone permission
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => {
+                    console.log("Microphone access granted/verified.");
+                    try {
+                        clearError();
+                        if(synth && synth.speaking) synth.cancel(); // Stop speaking if user interrupts with mic
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Error starting recognition:", e);
+                        displayError(`Error starting microphone: ${e.message}`);
+                        updateStatus('Mic Start Error', true);
+                        isListening = false; // Ensure state is reset
+                    }
+                })
+                .catch(err => {
+                    console.error("Microphone access denied or error:", err.name, err.message);
+                    let errorMsg = 'Microphone access denied.';
+                    if (err.name === 'NotAllowedError') errorMsg = 'Microphone permission denied.';
+                    else if (err.name === 'NotFoundError') errorMsg = 'No microphone found.';
+                    else if (err.name === 'NotReadableError') errorMsg = 'Microphone busy or hardware error.';
+                    else errorMsg = `Mic access error: ${err.message}`;
+                    if (!isSecureContext) errorMsg += ' Requires HTTPS/localhost.';
+                    displayError(errorMsg);
+                    updateStatus('Mic Access Denied', true);
+                });
         }
     });
 
-
     // --- Core Functions ---
 
-    function addMessageToChat(sender, message, isLoading = false) {
+    /** Adds a message bubble to the chat interface. */
+    function addMessageToChat(sender, message, { isLoading = false, imageUrl = null } = {}) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', sender.toLowerCase());
 
-        // Simple sanitization (consider a library like DOMPurify for production)
         const sanitizedMessage = message.replace(/</g, "<").replace(/>/g, ">");
 
+        // Always wrap text in a span for styling consistency and ::after pseudo-elements
         messageElement.innerHTML = `<span>${sanitizedMessage}</span>`;
 
         if (isLoading) {
-            messageElement.classList.add('loading');
+            messageElement.classList.add('loading'); // Trigger CSS loading animation
+        }
+
+        // Handle image display if URL provided
+        let imgContainer = null;
+        if (imageUrl) {
+            imgContainer = document.createElement('div');
+            imgContainer.classList.add('holographic-image-container');
+            const imgElement = document.createElement('img');
+            imgElement.src = imageUrl;
+            imgElement.alt = "Assistant generated image"; // Consider more descriptive alt text if possible
+            imgElement.classList.add('holographic-image');
+            imgContainer.appendChild(imgElement);
+            messageElement.classList.add('contains-hologram'); // Style parent bubble
         }
 
         // Remove previous loading indicator *before* adding new message/indicator
@@ -188,60 +190,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         chatbox.appendChild(messageElement);
+        // Append image container *after* the message text bubble if it exists
+        if (imgContainer) {
+            chatbox.appendChild(imgContainer);
+        }
+
         scrollToBottom();
-        return messageElement;
+        return messageElement; // Return the text message element for speaking reference
     }
 
+     /** Displays loading state in UI */
     function showLoadingIndicator() {
-         addMessageToChat('Assistant', 'Thinking', true); // Pass loading flag
-         statusIndicator.textContent = 'Processing...';
-         visualization.style.animationPlayState = 'running';
-         sendButton.disabled = true;
-         listenButton.disabled = true; // Disable mic while processing
-         userInput.disabled = true;
+        // Use a neutral base text; animation is handled by CSS
+        addMessageToChat('Assistant', 'Processing', { isLoading: true });
+        updateStatus('Processing...');
+        if (visualization) visualization.style.animationPlayState = 'running';
+        // Disable controls
+        sendButton.disabled = true;
+        listenButton.disabled = true;
+        userInput.disabled = true;
     }
 
+    /** Hides loading state and re-enables controls */
     function hideLoadingIndicator() {
-         const loadingIndicator = chatbox.querySelector('.message.loading');
-         if (loadingIndicator) {
-             loadingIndicator.remove();
-         }
-         // Reset status only if not speaking or listening or showing mic error
-         if (!assistantSpeaking && !isListening && !statusIndicator.textContent.includes('Error')) {
-            statusIndicator.textContent = 'Idle';
-         }
-         if (!assistantSpeaking && !isListening) { // Pause animation if idle
-            visualization.style.animationPlayState = 'paused';
-         }
-         sendButton.disabled = false;
-         // Re-enable listen button only if supported and not currently speaking
-         listenButton.disabled = !recognition || assistantSpeaking;
-         userInput.disabled = false;
-         userInput.focus();
+        const loadingIndicator = chatbox.querySelector('.message.loading');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+        // Reset status only if not speaking, listening, or showing error
+        if (!assistantSpeaking && !isListening && !statusIndicator.dataset.error) {
+           updateStatus('Idle');
+        }
+        if (visualization && !assistantSpeaking && !isListening) { // Pause vis if idle
+           visualization.style.animationPlayState = 'paused';
+        }
+        // Re-enable controls
+        sendButton.disabled = false;
+        listenButton.disabled = !supportsRecognition || assistantSpeaking; // Also disable if speaking
+        userInput.disabled = false;
+        userInput.focus();
     }
 
-     function displayError(message, persistent = false) {
+    /** Displays an error message below the input area */
+    function displayError(message, isPersistent = false) {
         errorMessageDiv.textContent = message;
-        errorMessageDiv.style.display = 'block';
-        errorMessageDiv.dataset.persistent = persistent; // Mark if it should persist
-        // Automatically hide non-persistent errors after a delay
-        if (!persistent) {
+        errorMessageDiv.style.display = 'block'; // Ensure visible
+        errorMessageDiv.dataset.persistent = isPersistent;
+        // Auto-hide non-persistent errors
+        if (!isPersistent) {
             setTimeout(clearError, 7000); // Hide after 7 seconds
         }
-     }
+    }
 
-     function clearError() {
-         // Only clear if the message is not marked as persistent
+    /** Displays a persistent error that needs manual clearing or page reload */
+    function displayPersistentError(message) {
+        displayError(message, true);
+    }
+
+    /** Clears non-persistent error messages */
+    function clearError() {
         if (errorMessageDiv.dataset.persistent !== 'true') {
             errorMessageDiv.textContent = '';
-            errorMessageDiv.style.display = 'none';
-            delete errorMessageDiv.dataset.persistent;
+            errorMessageDiv.style.display = 'none'; // Hide completely
         }
-     }
+    }
 
+    /** Updates the status indicator text */
+    function updateStatus(text, isError = false) {
+        statusIndicator.textContent = text;
+        if (isError) {
+            statusIndicator.style.color = 'var(--error-color)';
+            statusIndicator.dataset.error = 'true'; // Mark as error state
+        } else {
+            statusIndicator.style.color = '#8892b0'; // Reset color
+            delete statusIndicator.dataset.error; // Remove error state marker
+        }
+    }
+
+
+    /** Sends the user's question to the backend */
     async function sendMessage() {
         const question = userInput.value.trim();
-        if (!question || sendButton.disabled) return; // Prevent sending empty or while disabled
+        if (!question || sendButton.disabled) return; // Prevent empty/double send
 
         clearError(); // Clear previous non-persistent errors
         addMessageToChat('User', question);
@@ -253,49 +283,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json', // Good practice to accept JSON
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify({ question: question }),
             });
 
-            // Get response data regardless of status for error checking
             const data = await response.json().catch(err => {
                 console.error("Error parsing JSON response:", err);
-                // Create a synthetic error object if JSON parsing fails
-                return { error: `Invalid response format from server (Status: ${response.status})` };
+                // Network errors or non-JSON responses end up here
+                return { error: `Server returned non-JSON response (Status: ${response.status})` };
             });
 
-
-            if (!response.ok) {
-                 console.error('Server Error:', response.status, data);
-                 const errorMsg = `Error: ${data.error || response.statusText || 'Unknown server error'}`;
-                 displayError(errorMsg);
-                 addMessageToChat('Assistant', `Sorry, I encountered an error processing that.`);
-                 // Don't speak server errors
+            if (!response.ok || data.error) {
+                const errorMsg = `Error: ${data.error || response.statusText || 'Unknown server error'}`;
+                console.error('Server/Application Error:', response.status, data);
+                displayError(errorMsg);
+                // Add a generic error message to chat, don't speak it
+                addMessageToChat('Assistant', `Sorry, I encountered an error processing that.`);
+            } else if (data.response) {
+                // Pass potential image URL to addMessageToChat
+                currentAssistantMessageElement = addMessageToChat('Assistant', data.response, { imageUrl: data.image_url }); // Store element ref
+                speakResponse(data.response); // Speak the text response
             } else {
-                 if (data.error) { // Handle cases where API returns 200 OK but contains an error field
-                     console.error('Application Error:', data.error);
-                     displayError(`Assistant Error: ${data.error}`);
-                     addMessageToChat('Assistant', `Sorry, there was an issue: ${data.error}`);
-                 } else if (data.response) {
-                     const assistantMessageElement = addMessageToChat('Assistant', data.response);
-                     speakResponse(data.response, assistantMessageElement); // Speak the valid response
-                 } else {
-                      console.error('Invalid success response structure:', data);
-                      displayError('Received an unexpected response structure from the assistant.');
-                      addMessageToChat('Assistant', 'Sorry, I received an unexpected response.');
-                 }
+                 console.error('Invalid success response structure:', data);
+                 displayError('Received an unexpected response structure.');
+                 addMessageToChat('Assistant', 'Sorry, I received an unexpected response.');
             }
+
         } catch (error) {
             console.error('Network or Fetch Error:', error);
-            displayError(`Network error: ${error.message}. Could not reach the assistant.`);
+            const errorMsg = (error instanceof TypeError && error.message.includes('Failed to fetch'))
+                           ? 'Network error. Could not reach the assistant.'
+                           : `Network error: ${error.message}`;
+            displayError(errorMsg);
             addMessageToChat('Assistant', 'Sorry, I seem to be having trouble connecting.');
-            // Don't speak network errors
         } finally {
-             // Ensure loading indicator is hidden and input re-enabled
-             // Use a small timeout only if speech synthesis might start immediately
-             // Otherwise, hide directly for faster UI feedback
-             if (synth && synth.pending) { // If speech might start soon
+            // Use timeout only if speech is likely starting, otherwise hide immediately
+             if (supportsSynthesis && synth.pending) {
                 setTimeout(hideLoadingIndicator, 200);
              } else {
                 hideLoadingIndicator();
@@ -303,81 +327,92 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function speakResponse(textToSpeak, messageElement) {
-         if (!synth || !textToSpeak || typeof textToSpeak !== 'string' || textToSpeak.trim() === '') {
+    /** Uses Speech Synthesis to speak the assistant's response */
+    function speakResponse(textToSpeak) {
+         if (!supportsSynthesis || !textToSpeak || typeof textToSpeak !== 'string' || textToSpeak.trim() === '') {
              console.log("Speech synthesis skipped (no synth, empty text, or not speaking).");
-             // Ensure UI resets correctly if speech is skipped
-             hideLoadingIndicator(); // Call hide again to ensure correct state if speech was expected
+             // Ensure UI updates correctly even if speech skipped
+             if(assistantSpeaking) { // If we thought we were speaking but aren't now
+                 assistantSpeaking = false;
+                 if (currentAssistantMessageElement) currentAssistantMessageElement.classList.remove('speaking');
+                 if (!isListening && !statusIndicator.dataset.error) updateStatus('Idle');
+                 if (visualization && !isListening) visualization.style.animationPlayState = 'paused';
+                 listenButton.disabled = !supportsRecognition; // Re-enable mic
+             }
              return;
          }
 
-         // Cancel any previous speech
+        // Cancel previous speech if any
         if (synth.speaking || synth.pending) {
-            console.log("Cancelling previous speech utterance.");
+            console.log("Cancelling previous/pending speech.");
             synth.cancel();
+            // Manually reset state if cancel doesn't trigger onend quickly enough
+            if(assistantSpeaking) {
+                 assistantSpeaking = false;
+                 if (currentAssistantMessageElement) currentAssistantMessageElement.classList.remove('speaking');
+                 // Don't reset status/vis yet, new speech starting
+            }
         }
 
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        utterance.lang = 'en-US'; // Or detect language if needed
-
-        // Optional: Try to find a preferred voice
-        // let voices = synth.getVoices();
-        // if (voices.length > 0) {
-        //     utterance.voice = voices.find(v => v.name.includes('Google') && v.lang === 'en-US') || voices.find(v => v.lang === 'en-US') || voices[0];
-        // }
+        utterance.lang = 'en-US'; // Or detect dynamically if needed
 
         utterance.onstart = () => {
             console.log("Speech synthesis started.");
             assistantSpeaking = true;
-             statusIndicator.textContent = 'Speaking...';
-             visualization.style.animationPlayState = 'running';
-             listenButton.disabled = true; // Disable mic while speaking
-            if(messageElement) messageElement.classList.add('speaking');
+            updateStatus('Speaking...');
+            if (visualization) visualization.style.animationPlayState = 'running';
+            listenButton.disabled = true; // Disable mic while speaking
+            if (currentAssistantMessageElement) currentAssistantMessageElement.classList.add('speaking');
         };
 
         utterance.onend = () => {
             console.log("Speech synthesis finished.");
             assistantSpeaking = false;
-            if(messageElement) messageElement.classList.remove('speaking');
-            // Reset status only if not currently listening
-            if (!isListening) {
-                 statusIndicator.textContent = 'Idle';
-                 visualization.style.animationPlayState = 'paused';
-                 listenButton.disabled = !recognition; // Re-enable mic if supported
+            if (currentAssistantMessageElement) currentAssistantMessageElement.classList.remove('speaking');
+            // Reset status only if not listening or showing error
+            if (!isListening && !statusIndicator.dataset.error) {
+                 updateStatus('Idle');
+                 if (visualization) visualization.style.animationPlayState = 'paused';
             }
-            userInput.focus(); // Refocus input after speaking
+            listenButton.disabled = !supportsRecognition; // Re-enable mic
+            userInput.focus();
+            currentAssistantMessageElement = null; // Clear reference
         };
 
         utterance.onerror = (event) => {
-            console.error('Speech synthesis error:', event.error);
-             assistantSpeaking = false;
-             if(messageElement) messageElement.classList.remove('speaking');
-             displayError(`Speech synthesis error: ${event.error}`);
-             // Reset status only if not currently listening
-             if (!isListening) {
-                 statusIndicator.textContent = 'Speech Error';
-                 visualization.style.animationPlayState = 'paused';
-                 listenButton.disabled = !recognition; // Re-enable mic if supported
-             }
+            console.error('Speech synthesis error:', event.error, event);
+            assistantSpeaking = false;
+            if (currentAssistantMessageElement) currentAssistantMessageElement.classList.remove('speaking');
+            displayError(`Speech synthesis error: ${event.error}`);
+             // Reset status only if not listening
+            if (!isListening) {
+                 updateStatus('Speech Error', true);
+                 if (visualization) visualization.style.animationPlayState = 'paused';
+            }
+            listenButton.disabled = !supportsRecognition; // Re-enable mic
+            currentAssistantMessageElement = null; // Clear reference
         };
 
-        // Small delay before speaking can sometimes help avoid glitches
+        // Use a small delay before speaking to help avoid browser race conditions/glitches
         setTimeout(() => {
-             console.log("Attempting to speak...");
+             console.log("Attempting to speak utterance...");
              synth.speak(utterance);
-        }, 50); // 50ms delay
+        }, 50);
     }
 
-
+    /** Scrolls the chatbox to the bottom */
     function scrollToBottom() {
         // Use smooth scrolling for better UX
         chatbox.scrollTo({ top: chatbox.scrollHeight, behavior: 'smooth' });
     }
 
-    // --- Initial Setup ---
+    // --- Initial Page Load Setup ---
+    if (visualization) visualization.style.animationPlayState = 'paused'; // Ensure vis starts paused
     userInput.focus();
-    visualization.style.animationPlayState = 'paused'; // Start with animation paused
-    // Optional: Greet user via speech if supported
+    // Optional: Initial greeting message
+    // addMessageToChat('Assistant', 'Hello! How can I assist you today?');
+    // Optional: Speak initial greeting
     // setTimeout(() => speakResponse("Hello! How can I assist you today?"), 500);
 
-});
+}); // End DOMContentLoaded
