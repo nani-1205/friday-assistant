@@ -1,42 +1,51 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.A.Y. Assistant</title>
+    <!-- Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Add Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Link main stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"> <!-- Font Awesome for Icons -->
+    <!-- Add Favicon (Optional) -->
+    <!-- <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}"> -->
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>F.R.I.D.A.Y.</h1>
-            <div id="status-indicator">Idle</div>
+            <!-- Visualization placeholder -->
             <div id="ai-visualization">
-                <!-- Simple visual element -->
                 <div class="pulse-ring"></div>
             </div>
+            <h1>F.R.I.D.A.Y.</h1>
+            <div id="status-indicator">Idle</div>
         </header>
 
         <div id="chatbox">
-            <!-- Chat messages will appear here -->
+            <!-- Initial Assistant Message -->
              <div class="message assistant"><span>Hello! How can I assist you today?</span></div>
+            <!-- Chat messages will appear here -->
         </div>
 
+        <!-- Error display area -->
+        <div id="error-message" class="error-display" style="display: none;"></div>
+
         <div id="input-area">
-            <button id="listen-button" title="Start Listening">
+            <button id="listen-button" title="Start Listening (Requires HTTPS/localhost)">
                 <i class="fas fa-microphone"></i>
             </button>
-            <input type="text" id="user-input" placeholder="Type your message or click the mic...">
+            <input type="text" id="user-input" placeholder="Type your message or click the mic..." autocomplete="off">
             <button id="send-button" title="Send Message">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
-         <div id="error-message" class="error-display" style="display: none;"></div>
 
     </div>
 
+    <!-- Main JavaScript file -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
