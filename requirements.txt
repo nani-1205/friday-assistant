@@ -1,0 +1,4 @@
+Flask>=2.3.0
+google-generativeai>=0.4.0
+pymongo[srv]>=4.0      # [srv] is needed for MongoDB Atlas SRV connection strings if used
+python-dotenv>=1.0.0

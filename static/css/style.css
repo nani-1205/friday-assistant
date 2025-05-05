@@ -1,0 +1,276 @@
+/* static/css/style.css */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap');
+
+:root {
+    --primary-bg: #0a192f; /* Dark blue */
+    --secondary-bg: #112240; /* Slightly lighter blue */
+    --text-color: #ccd6f6; /* Light grayish blue */
+    --accent-color: #64ffda; /* Bright teal/cyan */
+    --accent-glow: rgba(100, 255, 218, 0.4);
+    --input-bg: #1e3a5f;
+    --button-bg: #64ffda;
+    --button-text: #0a192f;
+    --user-message-bg: #2a4b7c;
+    --assistant-message-bg: #1a3a6a;
+    --error-color: #ff6b6b;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden; /* Prevent scrolling of the body */
+}
+
+.container {
+    background-color: var(--secondary-bg);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    width: 90%;
+    max-width: 700px;
+    height: 90vh;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Important for child scrolling */
+    border: 1px solid var(--accent-color);
+}
+
+header {
+    padding: 15px 25px;
+    background-color: var(--primary-bg);
+    border-bottom: 1px solid var(--accent-color);
+    text-align: center;
+    position: relative; /* For positioning the visualization */
+}
+
+header h1 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent-color);
+    margin: 0;
+    font-size: 2em;
+    text-shadow: 0 0 10px var(--accent-glow);
+}
+
+#status-indicator {
+    font-size: 0.8em;
+    color: #8892b0; /* Lighter gray */
+    margin-top: 5px;
+    min-height: 1.2em; /* Prevent layout shift */
+}
+
+/* --- Simple Visualization --- */
+#ai-visualization {
+    position: absolute;
+    top: 50%;
+    left: 30px; /* Position to the left */
+    transform: translateY(-50%);
+    width: 40px; /* Adjust size */
+    height: 40px;
+}
+
+.pulse-ring {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid var(--accent-color);
+    box-shadow: 0 0 15px var(--accent-glow);
+    animation: pulse 2s infinite ease-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { transform: scale(1.2); opacity: 0; }
+}
+
+/* --- Chatbox --- */
+#chatbox {
+    flex-grow: 1; /* Takes up available space */
+    padding: 20px;
+    overflow-y: auto; /* Enable scrolling for chat messages */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between messages */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--accent-color) var(--input-bg); /* Firefox */
+}
+
+/* Webkit scrollbar styling */
+#chatbox::-webkit-scrollbar {
+    width: 8px;
+}
+#chatbox::-webkit-scrollbar-track {
+    background: var(--input-bg);
+    border-radius: 4px;
+}
+#chatbox::-webkit-scrollbar-thumb {
+    background-color: var(--accent-color);
+    border-radius: 4px;
+    border: 2px solid var(--input-bg);
+}
+
+.message {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    position: relative; /* For potential pseudo-elements */
+}
+
+.message span { /* Add span for better text selection/styling */
+    display: inline-block; /* Allows padding/margin */
+}
+
+
+.message.user {
+    background-color: var(--user-message-bg);
+    align-self: flex-end; /* Align user messages to the right */
+    border-bottom-right-radius: 5px; /* Slightly different shape */
+}
+
+.message.assistant {
+    background-color: var(--assistant-message-bg);
+    align-self: flex-start; /* Align assistant messages to the left */
+    border-bottom-left-radius: 5px; /* Slightly different shape */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.message.loading {
+    font-style: italic;
+    color: #8892b0;
+    background-color: transparent;
+    align-self: flex-start;
+}
+.message.loading::after {
+ content: '...';
+ display: inline-block;
+ animation: dots 1s steps(3, end) infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* --- Input Area --- */
+#input-area {
+    display: flex;
+    padding: 15px 20px;
+    border-top: 1px solid var(--accent-color);
+    background-color: var(--primary-bg);
+    gap: 10px;
+}
+
+#user-input {
+    flex-grow: 1;
+    padding: 12px 15px;
+    border: 1px solid var(--accent-color);
+    border-radius: 20px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-size: 1em;
+    outline: none;
+}
+
+#user-input:focus {
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+#input-area button {
+    background-color: var(--accent-color);
+    color: var(--button-text);
+    border: none;
+    border-radius: 50%; /* Make buttons circular */
+    width: 45px;
+    height: 45px;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#input-area button:hover {
+    background-color: #4ae4c4; /* Slightly lighter accent */
+    transform: scale(1.1);
+}
+#input-area button:active {
+    transform: scale(0.95);
+}
+
+#listen-button.listening i {
+    color: #ff4d4d; /* Red when listening */
+    animation: micPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes micPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Error Display */
+.error-display {
+    color: var(--error-color);
+    background-color: rgba(255, 107, 107, 0.1);
+    border: 1px solid var(--error-color);
+    padding: 10px 15px;
+    margin: 10px 20px 0; /* Margin top to separate from input */
+    border-radius: 5px;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+    .container {
+        width: 100%;
+        height: 100vh;
+        max-height: none;
+        border-radius: 0;
+        border: none;
+    }
+
+    header h1 {
+        font-size: 1.5em;
+    }
+
+    #ai-visualization {
+        width: 30px;
+        height: 30px;
+        left: 15px;
+    }
+
+    #chatbox {
+        padding: 15px;
+    }
+
+    #input-area {
+        padding: 10px 15px;
+    }
+
+    #user-input {
+        padding: 10px 12px;
+    }
+
+    #input-area button {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1em;
+    }
+
+    .message {
+        max-width: 90%;
+    }
+}

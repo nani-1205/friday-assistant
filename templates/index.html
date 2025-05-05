@@ -1,0 +1,42 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F.R.I.D.A.Y. Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"> <!-- Font Awesome for Icons -->
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>F.R.I.D.A.Y.</h1>
+            <div id="status-indicator">Idle</div>
+            <div id="ai-visualization">
+                <!-- Simple visual element -->
+                <div class="pulse-ring"></div>
+            </div>
+        </header>
+
+        <div id="chatbox">
+            <!-- Chat messages will appear here -->
+             <div class="message assistant"><span>Hello! How can I assist you today?</span></div>
+        </div>
+
+        <div id="input-area">
+            <button id="listen-button" title="Start Listening">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <input type="text" id="user-input" placeholder="Type your message or click the mic...">
+            <button id="send-button" title="Send Message">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+         <div id="error-message" class="error-display" style="display: none;"></div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
