@@ -1,210 +1,209 @@
 /* static/css/style.css */
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;500&display=swap'); /* Added 500 weight */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;500&display=swap');
 
 :root {
     --primary-bg: #0a192f;
     --secondary-bg: #112240;
-    --text-color: #ccd6f6; /* Lighter text */
-    --text-secondary-color: #8892b0; /* For placeholders, status */
+    --text-color: #ccd6f6;
+    --text-secondary-color: #8892b0;
     --accent-color: #64ffda;
     --accent-glow: rgba(100, 255, 218, 0.4);
     --input-bg: #1e3a5f;
     --button-bg: var(--accent-color);
     --button-text: var(--primary-bg);
-    --user-message-bg: #2a4b7c;
-    --assistant-message-bg: #1a3a6a;
-    --visualization-bg: rgba(10, 25, 47, 0.75); /* Slightly less transparent */
-    --visualization-border: rgba(100, 255, 218, 0.3); /* Softer border */
-    --error-color: #ff8080; /* Softer red */
+    /* Remove message-specific backgrounds */
+    --visualization-bg: rgba(17, 34, 64, 0.8); /* Slightly more opaque */
+    --visualization-border: rgba(100, 255, 218, 0.4); /* Brighter border */
+    --error-color: #ff8080;
     --error-bg: rgba(255, 107, 107, 0.1);
     --scrollbar-thumb: var(--accent-color);
     --scrollbar-track: var(--input-bg);
     --base-font-size: 16px;
-    --message-font-size: 0.95rem;
+    --content-font-size: 1.1rem; /* Larger font for main content */
 }
 
 /* Basic Reset */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; } /* Smooth scrolling for internal links/jumps */
+html { scroll-behavior: smooth; }
 
 body {
     font-family: 'Roboto', sans-serif;
-    background-color: var(--primary-bg);
+    background: linear-gradient(135deg, #0a192f 0%, #112240 50%, #0a192f 100%); /* Gradient Background */
+    background-size: 400% 400%; /* For animation */
+    animation: gradientBG 25s ease infinite; /* Background animation */
     color: var(--text-color);
     font-size: var(--base-font-size);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    overflow: hidden;
+    display: flex; /* Use flex for main layout */
+    flex-direction: column; /* Stack header, content, input */
+    height: 100vh; /* Full viewport height */
+    width: 100vw; /* Full viewport width */
+    overflow: hidden; /* Prevent body scrolling */
 }
 
-.container {
-    background-color: var(--secondary-bg);
-    border-radius: 15px;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6); /* Deeper shadow */
-    width: 90%;
-    max-width: 800px; /* Wider */
-    height: 90vh;
-    max-height: 900px; /* Taller */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid rgba(100, 255, 218, 0.5); /* Slightly softer border */
+@keyframes gradientBG {
+	0% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+	100% { background-position: 0% 50%; }
 }
 
-/* --- Header --- */
+/* Removed .container - Body is now the main container */
+
+/* --- Header --- (Relatively unchanged) */
 header {
-    padding: 15px 30px; /* Increased padding */
-    background-color: var(--primary-bg);
-    border-bottom: 1px solid var(--accent-color);
-    text-align: center;
-    position: relative;
-    flex-shrink: 0;
-    z-index: 10; /* Ensure header stays above chat content */
+    padding: 15px 30px; background-color: rgba(10, 25, 47, 0.8); /* Slightly transparent */
+    backdrop-filter: blur(5px); /* Glass effect */
+    border-bottom: 1px solid var(--accent-color); text-align: center; position: relative;
+    flex-shrink: 0; z-index: 10;
 }
 header h1 { font-family: 'Orbitron', sans-serif; color: var(--accent-color); margin: 0; font-size: 2.1em; text-shadow: 0 0 12px var(--accent-glow); }
 #status-indicator { font-size: 0.85em; color: var(--text-secondary-color); margin-top: 6px; min-height: 1.2em; transition: color 0.3s ease; font-weight: 300;}
-
-/* --- AI Visualization (Pulse Ring) --- */
 #ai-visualization { position: absolute; top: 50%; left: 30px; transform: translateY(-50%); width: 38px; height: 38px; }
 .pulse-ring { width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--accent-color); box-shadow: 0 0 15px var(--accent-glow); animation: pulse 2s infinite ease-out; animation-play-state: paused; }
-@keyframes pulse { /* Keep existing pulse */ }
+@keyframes pulse { 0%{transform:scale(.8);opacity:.7;} 50%{opacity:1;box-shadow:0 0 20px var(--accent-glow)} 100%{transform:scale(1.2);opacity:0;} }
 
-/* --- Chatbox --- */
-#chatbox {
-    flex-grow: 1;
-    padding: 25px; /* Increased padding */
-    overflow-y: auto;
+/* --- Main Content Area (Replaces Chatbox) --- */
+#main-content {
+    flex-grow: 1; /* Takes up remaining vertical space */
+    padding: 30px; /* Generous padding */
+    overflow-y: auto; /* Allow scrolling ONLY for this area if content overflows */
     display: flex;
     flex-direction: column;
-    gap: 18px; /* Increased gap for better spacing */
+    align-items: center; /* Center content horizontally */
+    justify-content: center; /* Center content vertically (initially) */
+    position: relative; /* For potential absolute positioned elements inside */
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
-#chatbox::-webkit-scrollbar { width: 8px; }
-#chatbox::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 4px; }
-#chatbox::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 4px; border: 2px solid var(--scrollbar-track); }
+#main-content::-webkit-scrollbar { width: 8px; }
+#main-content::-webkit-scrollbar-track { background: transparent; } /* Make track transparent */
+#main-content::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 4px; }
 
-/* --- Messages --- */
-.message {
-    max-width: 80%; /* Slightly narrower max-width */
-    padding: 12px 18px; /* Adjusted padding */
-    border-radius: 18px; /* More rounded */
-    line-height: 1.5;
-    word-wrap: break-word;
-    position: relative;
-    transition: background-color 0.3s ease, opacity 0.4s ease, transform 0.3s ease-out;
-    opacity: 0; /* Start transparent for fade-in */
-    transform: translateY(10px); /* Start slightly lower */
-    animation: message-appear 0.4s ease-out forwards; /* Animation */
+/* --- Content Placeholders within Main Area --- */
+/* These will hold the dynamically added content */
+.content-wrapper {
+    width: 100%;
+    max-width: 900px; /* Max width for readability */
+    margin-bottom: 25px; /* Space below each content block */
+    padding: 25px; /* Padding inside the wrapper */
+    border-radius: 12px;
+    background-color: var(--visualization-bg);
+    border: 1px solid var(--visualization-border);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+    opacity: 0; /* Start hidden */
+    transform: scale(0.95) translateY(20px); /* Start scaled down and lower */
+    animation: content-appear 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; /* Smooth appear animation */
 }
-/* Animation for new messages */
-@keyframes message-appear {
+.content-wrapper:last-child {
+    margin-bottom: 0; /* No margin on the very last item */
+}
+
+@keyframes content-appear {
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: scale(1) translateY(0);
     }
 }
 
-.message span { display: inline-block; word-break: break-word; font-size: var(--message-font-size); }
-.message:hover { transform: scale(1.01); /* Subtle hover scale */ }
-
-.message.user {
-    background: linear-gradient(135deg, #3a5f9d, #2a4b7c); /* Subtle gradient */
-    color: #fff; /* Brighter text for user */
-    align-self: flex-end;
-    border-bottom-right-radius: 6px; /* Sharper corner */
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-}
-.message.assistant {
-    background: linear-gradient(135deg, #1f4a7a, #1a3a6a); /* Subtle gradient */
+/* Specific placeholders */
+#response-text-area { /* Styles for the text response */
+    font-size: var(--content-font-size);
+    line-height: 1.6;
     color: var(--text-color);
-    align-self: flex-start;
-    border-bottom-left-radius: 6px; /* Sharper corner */
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    text-align: left; /* Or center if preferred */
+    white-space: pre-wrap; /* Preserve line breaks from AI */
 }
-.message.assistant.speaking { background: linear-gradient(135deg, #3a7aad, #2a5a8a); box-shadow: 0 0 10px var(--accent-glow); }
+#response-text-area p { /* Add space between paragraphs if AI generates them */
+    margin-bottom: 1em;
+}
+#response-text-area p:last-child {
+    margin-bottom: 0;
+}
 
-/* --- Loading Indicator --- */
-.message.loading { font-style: normal; color: var(--accent-color); background: transparent !important; align-self: flex-start; padding: 12px 18px; box-shadow: none; border: 1px dashed var(--visualization-border); animation: none; opacity: 1; transform: none; /* Override appearance animation */ }
-.message.loading span { display: inline-block; font-size: var(--message-font-size); }
-.message.loading span::after { content: '-'; display: inline-block; vertical-align: baseline; margin-left: 6px; width: 3em; text-align: left; animation: dots-dashes-loading 1.6s linear infinite; }
-@keyframes dots-dashes-loading { 0%{content:'-'} 15%{content:'.-'} 30%{content:'..-'} 45%{content:'.--'} 60%{content:'.-.-'} 75%{content:'--..'} 90%{content:'---'} 100%{content:'-'} }
 
-/* --- Visualizations (Containers) --- */
-.chart-container, .map-container, .holographic-image-container {
-    align-self: flex-start; width: 95%; margin: 0 auto 0 5px; /* Rely on chatbox gap */
-    border-radius: 10px; /* Consistent rounding */
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
-    clear: both; background-color: var(--visualization-bg);
-    border: 1px solid var(--visualization-border);
+#chart-placeholder, #map-placeholder {
+    /* Containers will be populated by JS */
+    width: 100%; /* Take full width of wrapper */
+}
+
+/* --- Visualizations (Specific Styles) --- */
+/* Chart canvas */
+#chart-placeholder canvas { max-width: 100%; height: auto !important; }
+
+/* Map container */
+#map-placeholder .map-container { /* Target the map div created by JS */
+    height: 350px; /* Increased map height */
+    width: 100%;
+    border-radius: 8px; /* Inner rounding */
+    border: none; /* Border is on the wrapper now */
     overflow: hidden;
-    /* Add appear animation to visualizations too */
-    opacity: 0; transform: translateY(10px); animation: message-appear 0.5s 0.2s ease-out forwards; /* Delay slightly */
+    position: relative;
+    background-color: var(--primary-bg); /* Loading background */
 }
-.chart-container { padding: 20px; height: auto; }
-.chart-container canvas { max-width: 100%; height: auto !important; }
-.map-container { height: 320px; border-color: var(--accent-color); padding: 0; position: relative; }
-.map-container .ol-zoom { background-color: rgba(10,25,47,0.7); border-radius: 4px; top:auto; bottom:10px; left:10px; }
-.map-container .ol-zoom-in, .map-container .ol-zoom-out { background-color: var(--input-bg); color: var(--accent-color); margin:1px; font-size:1.1em; font-weight:bold; width: 1.5em; height: 1.5em; }
-.map-container .ol-zoom-in:hover, .map-container .ol-zoom-out:hover { background-color: var(--secondary-bg); }
-.map-container .ol-attribution { background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:3px; bottom:5px; right:5px; font-size:0.7em; position:absolute; color:var(--text-secondary-color); }
-.map-container .ol-attribution a { color: var(--accent-color); text-decoration: none; }
-.map-container .ol-scale-line { background-color: rgba(10,25,47,0.7); border-radius: 3px; padding: 3px 6px; bottom: 10px; right: 10px; }
-.map-container .ol-scale-line-inner { border-color: var(--text-secondary-color); color: var(--text-secondary-color); font-size: 0.7em; }
+/* Style OL controls */
+#map-placeholder .map-container .ol-zoom { background-color: rgba(10,25,47,0.7); border-radius: 4px; top:auto; bottom:10px; left:10px; }
+#map-placeholder .map-container .ol-zoom-in, #map-placeholder .map-container .ol-zoom-out { background-color: var(--input-bg); color: var(--accent-color); margin:1px; font-size:1.1em; font-weight:bold; width: 1.5em; height: 1.5em; }
+#map-placeholder .map-container .ol-zoom-in:hover, #map-placeholder .map-container .ol-zoom-out:hover { background-color: var(--secondary-bg); }
+#map-placeholder .map-container .ol-attribution { background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:3px; bottom:5px; right:5px; font-size:0.7em; position:absolute; color:var(--text-secondary-color); }
+#map-placeholder .map-container .ol-attribution a { color: var(--accent-color); text-decoration: none; }
+#map-placeholder .map-container .ol-scale-line { background-color: rgba(10,25,47,0.7); border-radius: 3px; padding: 3px 6px; bottom: 10px; right: 10px; position: absolute;}
+#map-placeholder .map-container .ol-scale-line-inner { border-color: var(--text-secondary-color); color: var(--text-secondary-color); font-size: 0.7em; }
 
-/* --- Holographic Image Styling (If Used - KEEP EXISTING) --- */
-/* ... (holographic-image-container, holographic-image, ::after, keyframes) ... */
-
-/* --- Input Area --- */
-#input-area { display: flex; padding: 18px 25px; border-top: 1px solid var(--accent-color); background-color: var(--primary-bg); gap: 12px; flex-shrink: 0; align-items: center; /* Vertically align items */ }
+/* --- Input Area --- (Relatively unchanged, slightly larger) */
+#input-area {
+    display: flex; padding: 18px 30px; border-top: 1px solid var(--accent-color);
+    background-color: rgba(10, 25, 47, 0.8); /* Match header transparency */
+    backdrop-filter: blur(5px);
+    gap: 12px; flex-shrink: 0; align-items: center; z-index: 10;
+}
 #user-input { flex-grow: 1; padding: 14px 18px; border: 1px solid var(--accent-color); border-radius: 25px; background-color: var(--input-bg); color: var(--text-color); font-size: 1rem; outline: none; transition: box-shadow 0.3s ease; }
-#user-input:focus, #user-input:focus-visible { box-shadow: 0 0 12px var(--accent-glow); border-color: var(--accent-color); } /* Enhanced focus */
+#user-input:focus, #user-input:focus-visible { box-shadow: 0 0 12px var(--accent-glow); border-color: var(--accent-color); }
 #user-input::placeholder { color: var(--text-secondary-color); opacity: 0.8; }
-
 #input-area button { background-color: var(--button-bg); color: var(--button-text); border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 1.3em; cursor: pointer; transition: all 0.2s ease; display: flex; justify-content: center; align-items: center; flex-shrink: 0; outline: none; }
 #input-area button:hover { background-color: #4ae4c4; transform: scale(1.1); box-shadow: 0 0 10px var(--accent-glow); }
 #input-area button:active { transform: scale(0.95); }
-#input-area button:disabled { opacity: 0.5; cursor: not-allowed; transform: scale(1); box-shadow: none; background-color: var(--input-bg); color: var(--text-secondary-color); } /* Clearer disabled state */
-#input-area button:focus-visible { box-shadow: 0 0 0 3px var(--primary-bg), 0 0 0 5px var(--accent-color); } /* Focus ring for accessibility */
+#input-area button:disabled { opacity: 0.5; cursor: not-allowed; transform: scale(1); box-shadow: none; background-color: var(--input-bg); color: var(--text-secondary-color); }
+#input-area button:focus-visible { box-shadow: 0 0 0 3px var(--primary-bg), 0 0 0 5px var(--accent-color); }
 #listen-button.listening i { color: #ff4d4d; animation: micPulse 1.5s infinite ease-in-out; }
-@keyframes micPulse { 0%{transform:scale(1)} 50%{transform:scale(1.2)} 100%{transform:scale(1)} }
+@keyframes micPulse { /* Keep existing */ }
 
-/* --- Error Display --- */
-/* Position above input area */
+/* --- Error Display --- (Positioned below header) */
 .error-display {
     color: var(--error-color); background-color: var(--error-bg); border: 1px solid var(--error-color);
-    padding: 10px 25px; /* Match header padding */
-    border-radius: 0; /* Full width */
-    font-size: 0.9em; text-align: center; flex-shrink: 0; transition: opacity 0.3s ease, max-height 0.3s ease-in-out;
-    border-top: 1px solid rgba(255, 107, 107, 0.2); /* Separator */
-    max-height: 100px; /* Allow expansion */
-    opacity: 1;
+    padding: 10px 30px; /* Match header padding */
+    border-radius: 0; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; /* Round bottom corners */
+    font-size: 0.9em; text-align: center; flex-shrink: 0; transition: all 0.3s ease-in-out;
+    border-top: none; /* Remove top border */
+    /* Position absolutely below header */
+    position: absolute;
+    top: 78px; /* Adjust based on actual header height */
+    left: 0;
+    right: 0;
+    width: 90%; /* Match container width initially */
+    max-width: 800px; /* Match container max-width */
+    margin: 0 auto; /* Center it */
+    z-index: 5; /* Below header, above main content */
+    opacity: 0; /* Hidden by default */
+    max-height: 0;
+    overflow: hidden;
 }
-.error-display:empty, .error-display[style*="display: none"] { /* Hide completely when empty/hidden */
-     max-height: 0;
-     padding-top: 0;
-     padding-bottom: 0;
-     border: none;
-     opacity: 0;
-     /* Note: display:none is still set by JS, this handles the transition */
+.error-display.visible { /* Add this class via JS to show */
+     opacity: 1;
+     max-height: 100px; /* Or enough for content */
+     padding-top: 10px;
+     padding-bottom: 10px;
 }
 
 
 /* --- Responsive Adjustments --- */
-@media (max-width: 700px) { /* Adjusted breakpoint */
-    .container { width: 100%; height: 100vh; max-height: none; border-radius: 0; border: none; box-shadow: none; }
+@media (max-width: 700px) {
     header { padding: 12px 20px; } header h1 { font-size: 1.6em; }
     #ai-visualization { width: 30px; height: 30px; left: 20px; }
-    #chatbox { padding: 15px; gap: 12px; }
-    .message { max-width: 90%; padding: 10px 15px; border-radius: 15px; }
-    .message span { font-size: 0.9rem; } /* Slightly smaller text on mobile */
-    .chart-container, .map-container, .holographic-image-container { width: 95%; margin-left: 0; }
-    .map-container { height: 250px; }
+    #main-content { padding: 20px; }
+    .content-wrapper { padding: 15px; margin-bottom: 15px; }
+    #response-text-area { font-size: 1rem; }
+    .map-container { height: 280px; }
     #input-area { padding: 12px 15px; gap: 8px;}
     #user-input { padding: 11px 15px; font-size: 0.95rem; border-radius: 20px; }
     #input-area button { width: 42px; height: 42px; font-size: 1.1em; }
-    .error-display { margin: 0; padding: 8px 15px; border-radius: 0; }
+    .error-display { width: 100%; top: 65px; /* Adjust based on mobile header height */ border-radius: 0; padding: 8px 15px; }
 }
