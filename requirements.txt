@@ -1,10 +1,11 @@
 # requirements.txt
 
 Flask>=2.3.0
-google-generativeai>=0.4.0
-pymongo[srv]>=4.0      # [srv] helps with MongoDB Atlas connections
+google-generativeai>=0.5.0 # Use latest stable version
+pymongo[srv]>=4.0
 python-dotenv>=1.0.0
-requests>=2.28.0       # For WeatherAPI calls
-duckduckgo-search>=5.0.0 # For web search functionality
-urllib3                # Often a dependency, good to list explicitly
-pyopenssl>=23.0.0      # Needed only if using Flask's dev server with self-signed HTTPS
+requests>=2.28.0
+duckduckgo-search>=5.0.0
+geopy>=2.4.0
+urllib3
+pyopenssl>=23.0.0 # Only if using dev HTTPS server
