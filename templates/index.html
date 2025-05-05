@@ -9,8 +9,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.1.0/ol.css">
   <script src="https://cdn.jsdelivr.net/npm/ol@v9.1.0/dist/ol.js"></script>
-  <!-- Stylesheet -->
+  <!-- Main Stylesheet -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Optional Favicon -->
+  <!-- <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}"> -->
 </head>
 <body>
   <div class="container">
@@ -21,79 +23,101 @@
       </div>
       <div class="status">
         <div class="status-dot"></div>
+        <!-- ID for updating status text -->
         <span id="status-text">SYSTEMS ONLINE</span>
       </div>
     </div>
 
     <div class="main-content">
       <div class="sidebar">
-        <div class="menu-item active" data-view="dashboard-view"> <div class="menu-icon">⌂</div> <div class="menu-text">Dashboard</div> </div>
-        <div class="menu-item" data-view="armor-view"> <div class="menu-icon">🛡️</div> <div class="menu-text">Armor Systems</div> </div>
-        <!-- Added ID and data-view for Chat -->
-        <div class="menu-item" data-view="chat-view" id="chat-menu-item"> <div class="menu-icon">💬</div> <div class="menu-text">F.R.I.D.A.Y. Chat</div> </div>
-        <div class="menu-item" data-view="analytics-view"> <div class="menu-icon">📊</div> <div class="menu-text">Analytics</div> </div>
-        <div class="menu-item" data-view="recon-view"> <div class="menu-icon">🔍</div> <div class="menu-text">Reconnaissance</div> </div>
-        <div class="menu-item" data-view="power-view"> <div class="menu-icon">⚡</div> <div class="menu-text">Power Systems</div> </div>
-        <div class="menu-item" data-view="settings-view"> <div class="menu-icon">🔧</div> <div class="menu-text">Settings</div> </div>
+        <!-- Sidebar Menu Items with data-view attributes -->
+        <div class="menu-item active" data-view="dashboard-view">
+          <div class="menu-icon">⌂</div> <div class="menu-text">Dashboard</div>
+        </div>
+        <div class="menu-item" data-view="armor-view">
+           <div class="menu-icon">🛡️</div> <div class="menu-text">Armor Systems</div>
+        </div>
+        <div class="menu-item" data-view="chat-view" id="chat-menu-item"> <!-- ID for potential targeting -->
+           <div class="menu-icon">💬</div> <div class="menu-text">F.R.I.D.A.Y. Chat</div>
+        </div>
+        <div class="menu-item" data-view="analytics-view">
+          <div class="menu-icon">📊</div> <div class="menu-text">Analytics</div>
+        </div>
+        <div class="menu-item" data-view="recon-view">
+          <div class="menu-icon">🔍</div> <div class="menu-text">Reconnaissance</div>
+        </div>
+        <div class="menu-item" data-view="power-view">
+          <div class="menu-icon">⚡</div> <div class="menu-text">Power Systems</div>
+        </div>
+         <div class="menu-item" data-view="settings-view">
+            <div class="menu-icon">🔧</div> <div class="menu-text">Settings</div>
+         </div>
       </div>
 
-      <!-- === Dashboard View === -->
+      <!-- === Dashboard View (Starts Active) === -->
       <div class="dashboard active-view view-container" id="dashboard-view">
         <!-- Static Dashboard Widgets (Keep original HTML) -->
         <h2 class="section-title">SYSTEM OVERVIEW</h2>
-        <div class="widgets-container"> /* ... Widgets ... */ </div>
+        <div class="widgets-container">
+             <div class="widget"> <div class="widget-header"><div class="widget-title">POWER SYSTEMS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Arc Reactor</div><div>98%</div></div><div class="progress-bar"><div class="progress-value" style="width: 98%"></div></div> <div class="status-item"><div>Backup Power</div><div>84%</div></div><div class="progress-bar"><div class="progress-value" style="width: 84%"></div></div> <div class="status-item"><div>Efficiency</div><div>92%</div></div><div class="progress-bar"><div class="progress-value" style="width: 92%"></div></div> </div></div> </div>
+             <div class="widget"> <div class="widget-header"><div class="widget-title">DIAGNOSTICS</div></div> <div class="widget-content"><div class="graph-container"><div class="graph-line"> <div class="graph-bar" style="height: 40%; animation-delay: 0.1s"></div><div class="graph-bar" style="height: 60%; animation-delay: 0.2s"></div><div class="graph-bar" style="height: 30%; animation-delay: 0.3s"></div><div class="graph-bar" style="height: 80%; animation-delay: 0.4s"></div><div class="graph-bar" style="height: 50%; animation-delay: 0.5s"></div><div class="graph-bar" style="height: 70%; animation-delay: 0.6s"></div><div class="graph-bar" style="height: 45%; animation-delay: 0.7s"></div><div class="graph-bar" style="height: 65%; animation-delay: 0.8s"></div><div class="graph-bar" style="height: 85%; animation-delay: 0.9s"></div><div class="graph-bar" style="height: 35%; animation-delay: 1.0s"></div></div></div></div> </div>
+             <div class="widget"> <div class="widget-header"><div class="widget-title">SECURITY PROTOCOLS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Firewall</div><div>Active</div></div> <div class="status-item"><div>Encryption</div><div>Level 3</div></div> <div class="status-item"><div>Threat Detection</div><div>Scanning</div></div> <div class="status-item"><div>Last Breach</div><div>Never</div></div> </div></div> </div>
+        </div>
         <h2 class="section-title">MARK XLVI SYSTEMS</h2>
-        <div class="widgets-container"> /* ... Widgets ... */ </div>
-        <div class="circle-container"> /* ... Circles/Arcs ... */ </div>
+        <div class="widgets-container">
+            <div class="widget"> <div class="widget-header"><div class="widget-title">ARMOR INTEGRITY</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Front Plating</div><div>100%</div></div><div class="progress-bar"><div class="progress-value" style="width: 100%"></div></div> <div class="status-item"><div>Back Plating</div><div>100%</div></div><div class="progress-bar"><div class="progress-value" style="width: 100%"></div></div> <div class="status-item"><div>Helmet</div><div>100%</div></div><div class="progress-bar"><div class="progress-value" style="width: 100%"></div></div> </div></div> </div>
+            <div class="widget"> <div class="widget-header"><div class="widget-title">WEAPON SYSTEMS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Repulsors</div><div>Ready</div></div> <div class="status-item"><div>Unibeam</div><div>Charged</div></div> <div class="status-item"><div>Missiles</div><div>6 Armed</div></div> <div class="status-item"><div>Smart Targeting</div><div>Online</div></div> </div></div> </div>
+            <div class="widget"> <div class="widget-header"><div class="widget-title">FLIGHT SYSTEMS</div></div> <div class="widget-content"><div class="system-status"> <div class="status-item"><div>Thrusters</div><div>Ready</div></div> <div class="status-item"><div>Stabilizers</div><div>Calibrated</div></div> <div class="status-item"><div>Max Speed</div><div>Mach 3</div></div> <div class="status-item"><div>Navigation</div><div>Global</div></div> </div></div> </div>
+        </div>
+        <div class="circle-container"> <div class="circle"></div> <div class="circle"></div> <div class="circle"></div> <div class="arc"></div> <div class="arc"></div> </div>
       </div>
 
-      <!-- === F.R.I.D.A.Y. Chat Interface === -->
-      <div class="chat-container view-container" id="chat-view" style="display: none;"> <!-- Start hidden -->
+      <!-- === F.R.I.D.A.Y. Chat Interface (Starts Hidden) === -->
+      <div class="chat-container view-container" id="chat-view" style="display: none;">
         <div class="chat-header">
-          <div class="chat-status"></div> <!-- Could be dynamically updated -->
+          <div class="chat-status"></div>
           <div class="chat-title">F.R.I.D.A.Y. INTERACTIVE ASSISTANT</div>
-           <!-- Add status text specific to chat if needed, or rely on main header -->
-           <!-- <span id="chat-status-text">Idle</span> -->
+           <!-- Status text is shared in main header -->
         </div>
 
-        <!-- Add ID for message list -->
+        <!-- Message List Container -->
         <div class="chat-messages" id="chat-message-list">
-          <!-- Messages will be added here by script.js -->
+          <!-- Messages added by JS -->
         </div>
 
+        <!-- Input Area -->
         <div class="chat-input-container">
-          <!-- Add Listen Button -->
           <button id="listen-button" class="footer-button listen-btn" title="Voice Command">
               <i class="fas fa-microphone-alt"></i>
           </button>
-          <!-- Add ID for Chat Input -->
-          <input type="text" id="user-input" class="chat-input" placeholder="Type your message to F.R.I.D.A.Y...">
-          <!-- Add ID for Send Button -->
-          <button id="send-button" class="send-button footer-button">
-            <i class="fas fa-paper-plane"></i> <!-- Use FontAwesome icon -->
+          <input type="text" id="user-input" class="chat-input" placeholder="Ask F.R.I.D.A.Y....">
+          <button id="send-button" class="send-button footer-button" title="Send Message">
+            <i class="fas fa-paper-plane"></i>
           </button>
         </div>
       </div>
 
-      <!-- === Other Placeholder Views === -->
-       <div class="armor-view view-container" id="armor-view" style="display: none; padding: 20px;"><h2>Armor Systems (Placeholder)</h2></div>
-       <div class="analytics-view view-container" id="analytics-view" style="display: none; padding: 20px;"><h2>Analytics (Placeholder)</h2></div>
-       <div class="recon-view view-container" id="recon-view" style="display: none; padding: 20px;"><h2>Reconnaissance (Placeholder)</h2></div>
-       <div class="power-view view-container" id="power-view" style="display: none; padding: 20px;"><h2>Power Systems (Placeholder)</h2></div>
-       <div class="settings-view view-container" id="settings-view" style="display: none; padding: 20px;"><h2>Settings (Placeholder)</h2></div>
-
+      <!-- === Other Placeholder Views (Starts Hidden) === -->
+       <div class="armor-view view-container" id="armor-view" style="display: none; padding: 20px;"><h2>Armor Systems (Placeholder)</h2><p>Details about armor status would go here.</p></div>
+       <div class="analytics-view view-container" id="analytics-view" style="display: none; padding: 20px;"><h2>Analytics (Placeholder)</h2><p>Data visualizations and reports.</p></div>
+       <div class="recon-view view-container" id="recon-view" style="display: none; padding: 20px;"><h2>Reconnaissance (Placeholder)</h2><p>Maps, sensor feeds, target tracking.</p></div>
+       <div class="power-view view-container" id="power-view" style="display: none; padding: 20px;"><h2>Power Systems (Placeholder)</h2><p>Detailed power usage and diagnostics.</p></div>
+       <div class="settings-view view-container" id="settings-view" style="display: none; padding: 20px;"><h2>Settings (Placeholder)</h2><p>Configuration options.</p></div>
 
     </div> <!-- End .main-content -->
 
     <div class="footer">
       <div>STARK INDUSTRIES</div>
-      <!-- Footer Command Input REMOVED as chat input is primary -->
-      <div>© <span id="current-year"></span> Stark Industries AI Division</div> <!-- Example Footer Info -->
+      <div>© <span id="current-year"></span> Stark Industries AI Division</div>
     </div><!-- End .footer -->
+
   </div> <!-- End .container -->
 
   <!-- Arc Reactor Element -->
   <div id="arc-reactor"></div>
+
+  <!-- Notification placeholder (JS creates actual notifications) -->
+  <!-- <div class="notification"><div class="notification-title">TITLE</div><div>Message</div></div> -->
 
   <!-- Main JavaScript file -->
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>

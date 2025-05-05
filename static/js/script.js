@@ -2,25 +2,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
     console.log("[DEBUG] DOMContentLoaded: Finding elements...");
-    // UI Elements
+    // General UI
     const statusTextElement = document.getElementById('status-text');
     const statusDotElement = document.querySelector('.status-dot');
     const arcReactor = document.getElementById('arc-reactor');
     const menuItems = document.querySelectorAll('.menu-item');
     const views = document.querySelectorAll('.dashboard, .view-container'); // All main views
-    const dashboardView = document.getElementById('dashboard-view'); // Specific dashboard view
 
-    // Chat View Elements
-    const chatMessagesContainer = document.getElementById('chat-message-list'); // Where messages go
-    const chatUserInput = document.getElementById('user-input'); // Input in chat view
-    const chatSendButton = document.getElementById('send-button');   // Send button in chat view
-    const chatListenButton = document.getElementById('listen-button'); // Listen button in chat view
+    // Chat View Specific Elements
+    const chatContainer = document.getElementById('chat-view'); // The main chat view container
+    const chatMessagesContainer = document.getElementById('chat-message-list');
+    const chatUserInput = document.getElementById('user-input'); // Input in chat view's input container
+    const chatSendButton = document.getElementById('send-button'); // Send button in chat view's input container
+    const chatListenButton = document.getElementById('listen-button'); // Listen button in chat view's input container
 
-    // Verify core elements needed for chat functionality
-    if (!chatMessagesContainer) console.error("[CRITICAL] Chat message list area not found!");
-    if (!chatUserInput) console.error("[CRITICAL] Chat user input not found!");
-    if (!chatSendButton) console.error("[CRITICAL] Chat send button not found!");
-    // Listen button is optional depending on speech support
+    console.log(`[DEBUG] Elements: chatMsgs=${!!chatMessagesContainer}, chatInput=${!!chatUserInput}, chatSendBtn=${!!chatSendButton}, chatListenBtn=${!!chatListenButton}, statusText=${!!statusTextElement}`);
 
     // --- State Variables ---
     let recognition = null; let isListening = false; let synth = window.speechSynthesis;
@@ -38,9 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadAndSelectVoice() {
         if (!supportsSynthesis) { console.warn("Speech Synthesis not supported."); return; }
         try {
-            setTimeout(() => { // Delay helps ensure voices are ready
+            setTimeout(() => { // Delay helps ensure list is populated
                 availableVoices = synth.getVoices();
-                if (!availableVoices || availableVoices.length === 0) { console.warn("Voice list still empty after delay."); return; }
+                if (!availableVoices || availableVoices.length === 0) { console.warn("Voice list empty after delay."); return; }
                 console.log("[DEBUG] Available Voices:", availableVoices.map(v => ({ name: v.name, lang: v.lang, default: v.default, local: v.localService })));
                 const targetLang = 'en-US'; const preferredNames = ['google us english', 'microsoft zira', 'samantha', 'female'];
                 selectedVoice = availableVoices.find(v => v.lang === targetLang && preferredNames.some(n => v.name.toLowerCase().includes(n)) && !v.name.toLowerCase().includes('male'));
@@ -55,8 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Initial Checks & Setup ---
-    console.log("[DEBUG] Initial checks...");
-    if (!isSecureContext && supportsRecognition) createNotification("Security Warning", "Mic may not work over HTTP.", "error");
+    console.log("[DEBUG] Performing initial checks...");
+    if (!isSecureContext && supportsRecognition) createNotification("Security Warning", "Microphone may not work over non-secure (HTTP) connections.", "error");
     if (!supportsRecognition) { if(chatListenButton){ chatListenButton.disabled = true; chatListenButton.title = 'Mic not supported';} updateStatus('Mic Offline', true); }
     if (!supportsSynthesis) console.warn('Speech Synthesis not supported.');
     else { if (speechSynthesis.onvoiceschanged !== undefined) { speechSynthesis.onvoiceschanged = loadAndSelectVoice; } else { setTimeout(loadAndSelectVoice, 750); } loadAndSelectVoice(); }
@@ -87,11 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     console.log("[DEBUG] Attaching event listeners...");
-    // Chat Input/Send
-    if(chatSendButton) { chatSendButton.addEventListener('click', () => { console.log("[DEBUG] Chat Send button clicked!"); sendMessage(); }); console.log("[DEBUG] Chat Send listener attached."); } else { console.error("[DEBUG] Chat Send button NOT found!"); }
+    // Chat Input/Send/Listen
+    if(chatSendButton) { chatSendButton.addEventListener('click', () => { console.log("[DEBUG] Chat Send clicked!"); sendMessage(); }); console.log("[DEBUG] Chat Send listener attached."); } else { console.error("[DEBUG] Chat Send button NOT found!"); }
     if(chatUserInput) { chatUserInput.addEventListener('keypress', (event) => { if (event.key === 'Enter' && !event.shiftKey) { console.log("[DEBUG] Enter in Chat input!"); event.preventDefault(); sendMessage(); } }); console.log("[DEBUG] Chat Input listener attached."); } else { console.error("[DEBUG] Chat Input element NOT found!"); }
-    // Chat Listen Button
-    if(chatListenButton) { chatListenButton.addEventListener('click', () => { console.log("[DEBUG] Chat Listen button clicked!"); if (!supportsRecognition || !recognition) { createNotification("Mic Error", "Mic not supported/initialized.", "error"); return; } if (isListening) { console.log("[DEBUG] Stop reco..."); try { recognition.stop(); } catch (e) { console.error("[DEBUG] Err stop reco:", e); isListening=false; chatListenButton.classList.remove('listening'); /*...*/ } } else { console.log("[DEBUG] Start reco..."); if (!navigator.mediaDevices?.getUserMedia) { createNotification("Mic Error", "Mic access unavailable (needs HTTPS?).", "error"); updateStatus('Mic Access Error', true); return; } navigator.mediaDevices.getUserMedia({ audio: true }).then(() => { console.log("[DEBUG] Mic access granted."); try { if(synth?.speaking) synth.cancel(); recognition.start(); } catch (e) { console.error("[DEBUG] Err start reco:", e); createNotification("Mic Error", `Mic start error: ${e.message}`, "error"); updateStatus('Mic Start Error', true); isListening = false; } }).catch(err => { console.error("[DEBUG] Mic access err:", err.name, err.message); let msg='Mic access denied.'; if(err.name==='NotFoundError')msg='No mic found.'; else msg=`Mic access error: ${err.message}`; if (!isSecureContext && err.name==='NotAllowedError') msg+=' Needs HTTPS.'; createNotification("Mic Error", msg, "error"); updateStatus('Mic Access Denied', true); }); } }); console.log("[DEBUG] Chat Listen listener attached."); } else { console.error("[DEBUG] Chat Listen button NOT found!"); }
+    if(chatListenButton) { chatListenButton.addEventListener('click', () => { console.log("[DEBUG] Chat Listen clicked!"); if (!supportsRecognition || !recognition) { createNotification("Mic Error", "Mic not supported/initialized.", "error"); return; } if (isListening) { console.log("[DEBUG] Stop reco..."); try { recognition.stop(); } catch (e) { console.error("[DEBUG] Err stop reco:", e); isListening=false; chatListenButton.classList.remove('listening'); /*...*/ } } else { console.log("[DEBUG] Start reco..."); if (!navigator.mediaDevices?.getUserMedia) { createNotification("Mic Error", "Mic access unavailable (needs HTTPS?).", "error"); updateStatus('Mic Access Error', true); return; } navigator.mediaDevices.getUserMedia({ audio: true }).then(() => { console.log("[DEBUG] Mic access granted."); try { if(synth?.speaking) synth.cancel(); recognition.start(); } catch (e) { console.error("[DEBUG] Err start reco:", e); createNotification("Mic Error", `Mic start error: ${e.message}`, "error"); updateStatus('Mic Start Error', true); isListening = false; } }).catch(err => { console.error("[DEBUG] Mic access err:", err.name, err.message); let msg='Mic access denied.'; if(err.name==='NotFoundError')msg='No mic found.'; else msg=`Mic access error: ${err.message}`; if (!isSecureContext && err.name==='NotAllowedError') msg+=' Needs HTTPS.'; createNotification("Mic Error", msg, "error"); updateStatus('Mic Access Denied', true); }); } }); console.log("[DEBUG] Chat Listen listener attached."); } else { console.error("[DEBUG] Chat Listen button NOT found!"); }
 
     // --- Static UI Listeners ---
     console.log("[DEBUG] Attaching static UI listeners...");
@@ -100,22 +95,18 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems.forEach(item => {
         item.addEventListener('click', function() {
             if (this.classList.contains('active')) return;
-            menuItems.forEach(mi => mi.classList.remove('active'));
-            this.classList.add('active');
+            menuItems.forEach(mi => mi.classList.remove('active')); this.classList.add('active');
             const targetViewId = this.getAttribute('data-view');
             const menuText = this.querySelector('.menu-text')?.textContent || 'Section';
             createNotification('Navigation', 'Accessing: ' + menuText);
-            views.forEach(view => view.style.display = 'none'); // Hide all
+            views.forEach(view => { view.style.display = 'none'; view.classList.remove('active-view'); }); // Hide all & remove active class
             const targetView = document.getElementById(targetViewId);
             if (targetView) {
-                 // Use correct display type based on container type
-                 targetView.style.display = targetView.classList.contains('chat-container') ? 'flex' : 'block';
-                 targetView.classList.add('active-view'); // Maybe use class for fade-in
-                 // If switching to chat, focus input
-                 if (targetViewId === 'chat-view' && chatUserInput) {
-                      chatUserInput.focus();
-                 }
-            } else { console.error("Target view not found:", targetViewId); document.getElementById('dashboard-view')?.style.display = 'block'; } // Fallback to dashboard
+                 targetView.style.display = targetView.classList.contains('chat-container') ? 'flex' : 'block'; // Use flex for chat
+                 // Use rAF to ensure display is set before adding class for animation
+                 requestAnimationFrame(() => targetView.classList.add('active-view'));
+                 if (targetViewId === 'chat-view' && chatUserInput) chatUserInput.focus();
+            } else { console.error("Target view not found:", targetViewId); document.getElementById('dashboard-view')?.style.display = 'block'; } // Fallback
         });
     });
     const arcReactor = document.getElementById('arc-reactor'); if(arcReactor) { arcReactor.addEventListener('click', function() { createNotification('Arc Reactor Status', 'Power levels nominal. Diagnostics running...'); }); console.log("[DEBUG] Arc Reactor listener attached."); } else console.warn("[DEBUG] Arc Reactor element missing.");
@@ -123,120 +114,117 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Core Functions ---
 
-    /** Clears the chat message list */
-    function clearChatMessages() {
-        console.log("[DEBUG] Clearing chat messages...");
-        if (chatMessagesContainer) {
-            chatMessagesContainer.innerHTML = '';
-            if (mapInstance) { try { mapInstance.setTarget(null); } catch(e) {} mapInstance = null; console.log("[DEBUG] Cleared map instance ref."); }
-        } else { console.error("[DEBUG] Chat message list area not found!"); }
-    }
-
-    /** Adds a message OR visualization to the chat */
+    /** Adds a message OR visualization wrapper to the CHAT message list */
     function addOutputToChat(elementType, options = {}) {
         if (!chatMessagesContainer) { console.error("Cannot add output, chat message container not found."); return null; }
+        console.log(`[DEBUG] Adding output to chat: type=${elementType}`);
 
         let outputElement = null;
+        const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
         if (elementType === 'message') {
             const { sender, text } = options;
-            if (!text) return null; // Don't add empty messages
+            if (!text) return null;
             outputElement = document.createElement('div');
             outputElement.classList.add('message', sender.toLowerCase());
             const sanitizedText = text.replace(/</g, "<").replace(/>/g, ">");
-            // Add timestamp (simple example)
-            const now = new Date();
-            const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            outputElement.innerHTML = `<span>${sanitizedText}</span><div class="message-timestamp">${timeString}</div>`;
+            // Basic Markdown
+             let formattedText = sanitizedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/\\n/g,'<br>');
+            outputElement.innerHTML = `<span>${formattedText}</span><div class="message-timestamp">${timestamp}</div>`;
         }
         else if (elementType === 'chart' && supportsChartJS) {
             outputElement = document.createElement('div');
-            outputElement.classList.add('chart-container'); // Use the specific class
-             // Create a canvas *inside* this element
+            outputElement.classList.add('content-wrapper'); // Use content wrapper style for viz in chat
             const canvasId = `chart-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const canvas = document.createElement('canvas');
-            canvas.id = canvasId;
-            outputElement.appendChild(canvas);
-             console.log("[DEBUG] Chart container created for chat.");
-             // Chart initialization happens separately after appending
+            outputElement.innerHTML = `<canvas id="${canvasId}"></canvas>`; // Add canvas inside
+            console.log("[DEBUG] Chart container element created for chat.");
         }
          else if (elementType === 'map' && supportsOpenLayers) {
              outputElement = document.createElement('div');
-             outputElement.classList.add('map-container'); // Use the specific class
-             // Map initialization happens separately after appending
-              console.log("[DEBUG] Map container created for chat.");
+             outputElement.classList.add('content-wrapper'); // Use content wrapper style
+             const mapId = `map-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+             outputElement.innerHTML = `<div id="${mapId}" class="map-inner-container"></div>`; // Add inner div OL targets
+             console.log("[DEBUG] Map container element created for chat.");
          }
          // Add other types like 'image' if needed
 
         if (outputElement) {
             chatMessagesContainer.appendChild(outputElement);
-            scrollToChatBottom();
+            scrollToChatBottom(); // Scroll chat down
         }
-        return outputElement; // Return the created element (or null)
+        return outputElement; // Return the created wrapper element
     }
 
-    /** Creates a Chart.js chart IN A GIVEN CONTAINER */
+    /** Creates a Chart.js chart IN A GIVEN CONTAINER's CANVAS */
     function createDataVisualization(vizData, chartContainerElement) {
         if (!supportsChartJS || !vizData || !chartContainerElement) { console.error("[DEBUG] Chart.js unavailable or missing data/container."); return; }
         if (vizData.type !== 'bar') { console.warn("[DEBUG] Unhandled viz type:", vizData.type); return; }
         const canvas = chartContainerElement.querySelector('canvas'); // Find canvas inside
-        if (!canvas) { console.error("[DEBUG] Canvas element not found within chart container."); return; }
+        if (!canvas) { console.error("[DEBUG] Canvas element not found within chart container."); chartContainerElement.innerHTML="<span>[Chart Canvas Error]</span>"; return; }
         try {
             const ctx = canvas.getContext('2d'); if (!ctx) throw new Error("No 2D context");
-            new Chart(ctx, { type: 'bar', data: { labels: vizData.labels, datasets: vizData.datasets }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, title: { display: true, text: vizData.chart_title || 'Summary', color: '#e0e0e0', font: { size: 14, family:'Roboto' } }, tooltip: { backgroundColor: '#000' } }, scales: { y: { ticks: { color: '#e0e0e0', font: {size: 11}}, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255, 87, 34, 0.15)' } } } } }); // Updated colors
+            new Chart(ctx, { type: 'bar', data: { labels: vizData.labels, datasets: vizData.datasets }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, title: { display: true, text: vizData.chart_title || 'Summary', color: '#e0e0e0', font: { size: 14, family:'Roboto' } }, tooltip: { backgroundColor: '#000' } }, scales: { y: { ticks: { color: '#e0e0e0', font: {size: 11}}, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255, 87, 34, 0.15)' } } } } });
             console.log("[DEBUG] Chart initialized in container:", chartContainerElement);
         } catch (error) { console.error("[DEBUG] Error creating chart:", error); chartContainerElement.innerHTML = "<span>[Chart Display Error]</span>"; }
     }
 
-    /** Creates an OpenLayers map IN A GIVEN CONTAINER */
+    /** Creates an OpenLayers map IN A GIVEN CONTAINER's INNER DIV */
     function createMapVisualization(mapVizData, mapContainerElement) {
          if (!supportsOpenLayers || !mapVizData || !mapContainerElement) { console.error("[DEBUG] OL lib unavailable or missing data/container."); return; }
          const isRouteMap = mapVizData.type === 'route' && mapVizData.origin?.coords?.length === 2 && mapVizData.destination?.coords?.length === 2;
          const isPointMap = mapVizData.type === 'point' && mapVizData.latitude != null && mapVizData.longitude != null && !isRouteMap;
          if (!isRouteMap && !isPointMap) { console.error("[DEBUG] Map data missing required coords.", mapVizData); return; }
-         let mapDiv = null; console.log(`[DEBUG] Attempting to create ${isRouteMap ? 'route' : 'point'} map in container:`, mapContainerElement);
+         const mapDiv = mapContainerElement.querySelector('.map-inner-container'); // Find the target div
+         if (!mapDiv) { console.error("[DEBUG] Inner map div not found in container."); mapContainerElement.innerHTML = "<span>[Map Setup Error]</span>"; return; }
+         const mapId = mapDiv.id; // Get the ID we assigned earlier
+         console.log(`[DEBUG] Attempting to create ${isRouteMap ? 'route' : 'point'} map in container:`, mapContainerElement);
          try {
-             const mapId = `map-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-             mapContainerElement.innerHTML = ''; mapDiv = document.createElement('div'); mapDiv.id = mapId; mapDiv.classList.add('map-inner-container');
-             mapContainerElement.appendChild(mapDiv);
-             setTimeout(() => { // Delay map init
+             setTimeout(() => { // Delay map init slightly
                  console.log(`[DEBUG] Starting OL map init in target: ${mapId}`);
-                 const targetElement = document.getElementById(mapId);
-                 if (!targetElement) { console.error(`[DEBUG] Map target #${mapId} not found!`); if(mapContainerElement) mapContainerElement.innerHTML = "<span>[Map Target Error]</span>"; return; }
+                 const targetElement = document.getElementById(mapId); // Verify target still exists
+                 if (!targetElement) { console.error(`[DEBUG] Map target element #${mapId} not found!`); if(mapContainerElement) mapContainerElement.innerHTML = "<span>[Map Target Error]</span>"; return; }
                  try {
                      const features = []; let viewCenter, viewZoom, extentToFit;
                      const pointStyle=new ol.style.Style({image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:'rgba(255,87,34,.9)'}),stroke:new ol.style.Stroke({color:'#fff',width:2})})});
                      const originStyle=new ol.style.Style({image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:'rgba(76,175,80,.8)'}),stroke:new ol.style.Stroke({color:'#fff',width:2})})});
                      const destStyle=new ol.style.Style({image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:'rgba(33,150,243,.8)'}),stroke:new ol.style.Stroke({color:'#fff',width:2})})});
                      const lineStyle=new ol.style.Style({stroke:new ol.style.Stroke({color:'rgba(255,87,34,.7)',width:3})});
-                     if (isRouteMap) { const oC=ol.proj.fromLonLat([mapVizData.origin.coords[1],mapVizData.origin.coords[0]]); const dC=ol.proj.fromLonLat([mapVizData.destination.coords[1],mapVizData.destination.coords[0]]); const oM=new ol.Feature({geometry:new ol.geom.Point(oC),name:`O:${mapVizData.origin.name}`}); oM.setStyle(originStyle); features.push(oM); const dM=new ol.Feature({geometry:new ol.geom.Point(dC),name:`D:${mapVizData.destination.name}`}); dM.setStyle(destStyle); features.push(dM); const l=new ol.Feature({geometry:new ol.geom.LineString([oC,dC])}); l.setStyle(lineStyle); features.push(l); extentToFit=ol.extent.boundingExtent([oC,dC]); console.log("[DEBUG] Route features."); }
-                     else if (isPointMap) { const cC=ol.proj.fromLonLat([mapVizData.longitude,mapVizData.latitude]); viewCenter=cC; viewZoom=mapVizData.zoom||11; const m=new ol.Feature({geometry:new ol.geom.Point(cC),name:mapVizData.marker_title||'Loc'}); m.setStyle(pointStyle); features.push(m); console.log("[DEBUG] Point feature."); }
+                     if (isRouteMap) { const oC=ol.proj.fromLonLat([mapVizData.origin.coords[1],mapVizData.origin.coords[0]]); const dC=ol.proj.fromLonLat([mapVizData.destination.coords[1],mapVizData.destination.coords[0]]); const oM=new ol.Feature({geometry:new ol.geom.Point(oC),name:`O:${mapVizData.origin.name}`}); oM.setStyle(originStyle); features.push(oM); const dM=new ol.Feature({geometry:new ol.geom.Point(dC),name:`D:${mapVizData.destination.name}`}); dM.setStyle(destStyle); features.push(dM); const l=new ol.Feature({geometry:new ol.geom.LineString([oC,dC])}); l.setStyle(lineStyle); features.push(l); extentToFit=ol.extent.boundingExtent([oC,dC]); console.log("[DEBUG] Route features created.");
+                     } else if (isPointMap) { const cC=ol.proj.fromLonLat([mapVizData.longitude,mapVizData.latitude]); viewCenter=cC; viewZoom=mapVizData.zoom||11; const m=new ol.Feature({geometry:new ol.geom.Point(cC),name:mapVizData.marker_title||'Loc'}); m.setStyle(pointStyle); features.push(m); console.log("[DEBUG] Point feature."); }
                      const vSrc=new ol.source.Vector({features:features}); const vLayer=new ol.layer.Vector({source:vSrc});
-                     console.log(`[DEBUG] Creating OL Map instance: ${mapId}`);
+                     console.log(`[DEBUG] Creating OL Map instance for target: ${mapId}`);
                      mapInstance=new ol.Map({target:mapId, layers:[new ol.layer.Tile({source:new ol.source.OSM()}), vLayer], view:new ol.View({center:viewCenter,zoom:viewZoom,maxZoom:18,minZoom:2}), controls:ol.control.defaults({attributionOptions:{collapsible:true}}).extend([new ol.control.ScaleLine()])});
                      if(extentToFit){ console.log("[DEBUG] Fitting map view..."); setTimeout(() => { try { mapInstance.getView().fit(extentToFit, {padding:[70,70,70,70], maxZoom:14, duration:500}); console.log("[DEBUG] Map fitted."); } catch(fitErr) { console.error("[DEBUG] Error fitting map:", fitErr); } }, 150); }
                      console.log("[DEBUG] OL map instance OK:", mapId);
-                     // No scroll needed here, handled by chat scroll
                   } catch(mapInitError) { console.error("[DEBUG] Error initializing OL map instance:", mapInitError); if(mapContainerElement) mapContainerElement.innerHTML = "<span>[Map Init Error]</span>"; }
              }, 150);
-         } catch (error) { console.error("[DEBUG] Error setting up map container:", error); if(containerElement) containerElement.innerHTML = "<span>[Map Setup Error]</span>"; }
+         } catch (error) { console.error("[DEBUG] Error setting up map container:", error); if(mapContainerElement) mapContainerElement.innerHTML = "<span>[Map Setup Error]</span>"; }
      } // End createMapVisualization
 
     /** Displays loading state in UI */
     function showLoadingIndicator() {
         updateStatus('Processing...'); // Main feedback is status text
+        // No visualization pulse ring to control
         if(chatSendButton) chatSendButton.disabled = true;
         if(chatListenButton) chatListenButton.disabled = true;
         if(chatUserInput) chatUserInput.disabled = true;
-        // Maybe add a subtle indicator near input? For now, rely on status text.
+        // Maybe add subtle opacity/indicator to chat input area?
     }
 
      /** Hides loading state */
     function hideLoadingIndicator() {
         if (!assistantSpeaking && !isListening && !statusTextElement?.dataset.error) { updateStatus('SYSTEMS ONLINE'); } // Reset status
+        // No visualization pulse control
         if(chatSendButton) chatSendButton.disabled=false;
         if(chatListenButton) chatListenButton.disabled=!supportsRecognition||assistantSpeaking;
         if(chatUserInput){chatUserInput.disabled=false; try{chatUserInput.focus();}catch(e){}}
+    }
+
+    /** Displays an error message using the notification system */
+    function displayError(message) {
+        console.log(`[UI ERROR] ${message}`); // Log error clearly
+        createNotification("Assistant Error", message, "error");
+        updateStatus('Error Detected', true); // Update header status too
     }
 
     /** Updates the status indicator text and state */
@@ -249,54 +237,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const question = chatUserInput?.value.trim(); // Read from chat input
         if (!question || (chatSendButton && chatSendButton.disabled)) return;
 
-        addOutputToChat('message', { sender: 'user', text: question }); // Add user message to chat
-        if(chatUserInput) chatUserInput.value = ''; // Clear chat input
+        addOutputToChat('message', { sender: 'user', text: question }); // Add user message
+        if(chatUserInput) chatUserInput.value = ''; // Clear input
         showLoadingIndicator(); // Update status, disable inputs
 
-        console.log(`[DEBUG] sendMessage initiated for question: "${question}"`);
+        console.log(`[DEBUG] sendMessage for question: "${question}"`);
         try {
             const response = await fetch('/ask', { method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify({ question: question }) });
-            console.log(`[DEBUG] Fetch response status: ${response.status}`);
+            console.log(`[DEBUG] Fetch status: ${response.status}`);
             let data = null; try { data = await response.json(); console.log("[DEBUG] Received data:", data); } catch (jsonError){ console.error("[DEBUG] JSON Parse Error:", jsonError); data = { error: `Invalid response (Status: ${response.status})` };}
 
             if (!response.ok || (data && data.error)) {
-                const errorMsg = `Error: ${data.error || response.statusText || 'Unknown'}`;
-                console.error('[DEBUG] Server/App Error:', response.status, data);
-                createNotification("Processing Error", errorMsg, "error"); // Use notification for errors
-                addOutputToChat('message', { sender: 'friday', text: `Sorry, encountered an error.` }); // Simple error message in chat
+                 const errorMsg = `Error: ${data.error || response.statusText || 'Unknown'}`; console.error('[DEBUG] Server/App Error:', response.status, data);
+                 createNotification("Processing Error", errorMsg, "error"); // Use notification
+                 addOutputToChat('message', { sender: 'friday', text: `Sorry, encountered an error.` });
             } else if (data && data.response) {
-                console.log("[DEBUG] Received valid response. Adding to chat...");
+                console.log("[DEBUG] Valid response. Adding outputs to chat...");
                 // 1. Add Text Response
                 const textElement = addOutputToChat('message', { sender: 'friday', text: data.response });
-                // 2. Add Chart (if data exists) - Appends *after* text
+                // 2. Add Chart (if data exists)
                 if (data.visualization_data && supportsChartJS) {
                     const chartContainer = addOutputToChat('chart'); // Add container
                     if (chartContainer) createDataVisualization(data.visualization_data, chartContainer); // Init chart
                 }
-                 // 3. Add Map (if data exists) - Appends *after* text/chart
+                 // 3. Add Map (if data exists)
                 if (data.map_data && supportsOpenLayers) {
                     const mapContainer = addOutputToChat('map'); // Add container
                     if (mapContainer) createMapVisualization(data.map_data, mapContainer); // Init map
                 }
                 // 4. Speak (after content added)
                 speakResponse(data.response);
-            } else {
-                 console.error('[DEBUG] Invalid success structure:', data);
-                 createNotification("Response Error", "Received unexpected data structure.", "error");
-                 addOutputToChat('message', { sender: 'friday', text: 'Sorry, unexpected response structure.' });
-            }
-        } catch (error) {
-             console.error('[DEBUG] Network/Fetch Error:', error);
-             const errorMsg = 'Network error reaching assistant server.';
-             createNotification("Connection Error", errorMsg, "error");
-             addOutputToChat('message', { sender: 'friday', text: 'Sorry, trouble connecting.' });
-        } finally {
-             console.log("[DEBUG] sendMessage finally.");
-             if (!assistantSpeaking && !(supportsSynthesis && synth?.pending)) {
-                  console.log("[DEBUG] Hiding loading indicator from finally.");
-                  hideLoadingIndicator();
-             } else { console.log("[DEBUG] Skipping hideLoadingIndicator (speech active/pending)."); }
-        }
+            } else { console.error('[DEBUG] Invalid success structure:', data); createNotification("Response Error","Unexpected data structure.","error"); addOutputToChat('message', { sender: 'friday', text: 'Sorry, unexpected response.' }); }
+        } catch (error) { console.error('[DEBUG] Network/Fetch Error:', error); const errorMsg = 'Network error reaching assistant server.'; createNotification("Connection Error", errorMsg, "error"); addOutputToChat('message', { sender: 'friday', text: 'Sorry, trouble connecting.' }); }
+        finally { console.log("[DEBUG] sendMessage finally."); if (!assistantSpeaking && !(supportsSynthesis && synth?.pending)) { console.log("[DEBUG] Hiding loading indicator."); hideLoadingIndicator(); } else { console.log("[DEBUG] Skipping hideLoadingIndicator (speech active/pending)."); } }
     } // End sendMessage
 
     /** Uses Speech Synthesis */
@@ -304,16 +277,16 @@ document.addEventListener('DOMContentLoaded', () => {
          if (!supportsSynthesis || !synth || !textToSpeak || typeof textToSpeak !== 'string' || textToSpeak.trim() === '') { console.log("[DEBUG] Speech skipped."); if(assistantSpeaking){ assistantSpeaking=false; /*...*/ } return; }
          if (synth.speaking || synth.pending) { console.log("[DEBUG] Cancelling previous speech."); synth.cancel(); if(assistantSpeaking){ assistantSpeaking=false; /*...*/ } }
          const utterance = new SpeechSynthesisUtterance(textToSpeak);
-         if (selectedVoice) { utterance.voice = selectedVoice; utterance.lang = selectedVoice.lang; console.log(`[DEBUG] Using voice: ${selectedVoice.name} (${utterance.lang})`); }
-         else { utterance.lang = 'en-US'; console.log(`[DEBUG] Using default voice (Lang: ${utterance.lang}).`); }
+         if (selectedVoice) { utterance.voice = selectedVoice; utterance.lang = selectedVoice.lang; console.log(`[DEBUG] Using voice: ${selectedVoice.name}`); }
+         else { utterance.lang = 'en-US'; console.log(`[DEBUG] Using default voice`); }
          utterance.pitch = 1; utterance.rate = 1;
-         utterance.onstart = () => { console.log("[DEBUG] Speech started."); assistantSpeaking = true; updateStatus('Speaking...'); /* No pulse ring */ if (chatListenButton) chatListenButton.disabled = true; };
-         utterance.onend = () => { console.log("[DEBUG] Speech finished."); assistantSpeaking = false; hideLoadingIndicator(); if (!isListening && !statusTextElement?.dataset.error) { updateStatus('SYSTEMS ONLINE'); /* No pulse ring */ } if (chatListenButton) chatListenButton.disabled = !supportsRecognition; if(chatUserInput) try{chatUserInput.focus();}catch(e){} };
-         utterance.onerror = (event) => { console.error('[DEBUG] Speech error:', event.error, event); assistantSpeaking = false; hideLoadingIndicator(); createNotification("Speech Error", `Playback failed: ${event.error}`, "error"); if (!isListening) { updateStatus('Speech Error', true); /* No pulse ring */ } if (chatListenButton) chatListenButton.disabled = !supportsRecognition; };
-         setTimeout(() => { try { if (synth) { console.log("[DEBUG] Attempting synth.speak..."); synth.speak(utterance); console.log(`[DEBUG] synth.speak called. Status: speaking=${synth.speaking}, pending=${synth.pending}`); } else { console.error("[DEBUG] Synth unavailable."); createNotification("Speech Error", "Synthesis engine unavailable.", "error"); } } catch (speakError) { console.error("[DEBUG] Error during synth.speak:", speakError); createNotification("Speech Error", `Playback error: ${speakError.message}`, "error"); assistantSpeaking = false; hideLoadingIndicator(); } }, 100);
+         utterance.onstart = () => { console.log("[DEBUG] Speech started."); assistantSpeaking = true; updateStatus('Speaking...'); if (chatListenButton) chatListenButton.disabled = true; };
+         utterance.onend = () => { console.log("[DEBUG] Speech finished."); assistantSpeaking = false; hideLoadingIndicator(); if (!isListening && !statusTextElement?.dataset.error) { updateStatus('SYSTEMS ONLINE'); } if (chatListenButton) chatListenButton.disabled = !supportsRecognition; if(chatUserInput) try{chatUserInput.focus();}catch(e){} };
+         utterance.onerror = (event) => { console.error('[DEBUG] Speech error:', event.error); assistantSpeaking = false; hideLoadingIndicator(); createNotification("Speech Error",`Playback failed: ${event.error}`, "error"); if (!isListening) { updateStatus('Speech Error', true); } if (chatListenButton) chatListenButton.disabled = !supportsRecognition; };
+         setTimeout(() => { try { if (synth) { console.log("[DEBUG] Attempting synth.speak..."); synth.speak(utterance); } else { console.error("[DEBUG] Synth unavailable."); createNotification("Speech Error","Engine unavailable.","error"); } } catch (speakError) { console.error("[DEBUG] Error synth.speak:", speakError); createNotification("Speech Error",`Playback error: ${speakError.message}`,"error"); assistantSpeaking = false; hideLoadingIndicator(); } }, 100);
     }
 
-    /** Scrolls the chat message list to the bottom */
+    /** Scrolls the CHAT message list to the bottom */
     function scrollToChatBottom() {
         if(chatMessagesContainer) {
             chatMessagesContainer.scrollTo({ top: chatMessagesContainer.scrollHeight, behavior: 'smooth' });
@@ -321,11 +294,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Initial Page Load Setup ---
-    // Removed visualization pulse control
     updateStatus('SYSTEMS ONLINE'); // Set initial status
-    // Initial greeting added to chat when view becomes active (see sidebar listener)
-    if(document.getElementById('dashboard-view')) document.getElementById('dashboard-view').style.display = 'block'; // Show dashboard initially
-    if(chatUserInput) chatUserInput.focus(); // Focus input initially (might change if chat not default view)
+    // Show dashboard initially
+    if(dashboardView) dashboardView.style.display = 'block'; dashboardView.classList.add('active-view');
+    // Focus input only if chat view is initially active (which it isn't now)
+    // if(chatUserInput && chatContainer?.style.display !== 'none') chatUserInput.focus();
+    document.getElementById('current-year').textContent = new Date().getFullYear(); // Set footer year
     console.log("[DEBUG] Initial setup complete.");
 
 }); // End DOMContentLoaded
