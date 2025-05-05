@@ -27,7 +27,7 @@ else:
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
         # Consider gemini-1.5-flash for potentially faster responses if suitable
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         logging.info("Google Gemini configured successfully.")
     except Exception as e:
         logging.error(f"Error configuring Google Gemini: {e}")
