@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!supportsSynthesis) { console.warn("Speech Synthesis not supported."); return; }
         try {
             availableVoices = synth.getVoices();
-            if (!availableVoices || availableVoices.length === 0) { console.warn("Voice list empty, waiting for 'voiceschanged'."); return; }
+            if (!availableVoices || availableVoices.length === 0) { console.warn("Voice list empty or unavailable, waiting for 'voiceschanged'."); return; }
             console.log("[DEBUG] Available Voices:", availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, local: v.localService })));
             const targetLang = 'en-US'; const preferredNames = ['google us english', 'microsoft zira', 'samantha', 'female']; // Lowercase names to check against
             selectedVoice = availableVoices.find(v => v.lang === targetLang && preferredNames.some(n => v.name.toLowerCase().includes(n)) && !v.name.toLowerCase().includes('male'));
@@ -78,169 +78,110 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("[DEBUG] Attaching event listeners...");
     if(sendButton) {
         sendButton.addEventListener('click', () => {
-            console.log("[DEBUG] Send button clicked!"); // <-- DEBUG LINE
+            console.log("[DEBUG] Send button clicked!");
             sendMessage();
         });
-        console.log("[DEBUG] Send button listener attached."); // <-- CONFIRM ATTACH
-    } else {
-        console.error("[DEBUG] Send button element NOT found!");
-    }
+        console.log("[DEBUG] Send button listener attached.");
+    } else { console.error("[DEBUG] Send button element NOT found!"); }
 
     if(userInput) {
         userInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
-                console.log("[DEBUG] Enter key pressed in input!"); // <-- DEBUG LINE
+                console.log("[DEBUG] Enter key pressed in input!");
                 event.preventDefault();
                 sendMessage();
             }
         });
-         console.log("[DEBUG] User input listener attached."); // <-- CONFIRM ATTACH
-    } else {
-         console.error("[DEBUG] User input element NOT found!");
-    }
-
+         console.log("[DEBUG] User input listener attached.");
+    } else { console.error("[DEBUG] User input element NOT found!"); }
 
     if(listenButton) {
         listenButton.addEventListener('click', () => {
-            console.log("[DEBUG] Listen button clicked!"); // <-- DEBUG LINE
-            if (!supportsRecognition || !recognition) {
-                displayError("Mic not supported/initialized.");
-                return;
-            }
-            if (isListening) { // Stop listening
-                 console.log("[DEBUG] Attempting to stop recognition...");
-                 try { recognition.stop(); } catch (e) { console.error("[DEBUG] Err stop recognition:", e); isListening=false; listenButton.classList.remove('listening'); /*...*/ }
-            } else { // Start listening
-                 console.log("[DEBUG] Attempting to start recognition...");
-                 if (!navigator.mediaDevices?.getUserMedia) { displayError('Mic access unavailable (needs HTTPS?).'); updateStatus('Mic Access Error', true); return; }
+            console.log("[DEBUG] Listen button clicked!");
+            if (!supportsRecognition || !recognition) { displayError("Mic not supported/initialized."); return; }
+            if (isListening) { console.log("[DEBUG] Attempting to stop recognition..."); try { recognition.stop(); } catch (e) { console.error("[DEBUG] Err stop recognition:", e); isListening=false; listenButton.classList.remove('listening'); /*...*/ } }
+            else { console.log("[DEBUG] Attempting to start recognition..."); if (!navigator.mediaDevices?.getUserMedia) { displayError('Mic access unavailable (needs HTTPS?).'); updateStatus('Mic Access Error', true); return; }
                  navigator.mediaDevices.getUserMedia({ audio: true }).then(() => { console.log("[DEBUG] Mic access granted."); try { clearError(); if(synth?.speaking) synth.cancel(); recognition.start(); } catch (e) { console.error("[DEBUG] Err start recognition:", e); displayError(`Mic start error: ${e.message}`); updateStatus('Mic Start Error', true); isListening = false; } })
                      .catch(err => { console.error("[DEBUG] Mic access err:", err.name, err.message); let msg='Mic access denied.'; if(err.name==='NotFoundError')msg='No mic found.'; else if (err.name==='NotReadableError')msg='Mic busy/hardware error.'; else msg=`Mic access error: ${err.message}`; if (!isSecureContext && err.name==='NotAllowedError') msg+=' Needs HTTPS.'; displayError(msg); updateStatus('Mic Access Denied', true); });
             }
         });
-         console.log("[DEBUG] Listen button listener attached."); // <-- CONFIRM ATTACH
-    } else {
-         console.error("[DEBUG] Listen button element NOT found!");
-    }
+         console.log("[DEBUG] Listen button listener attached.");
+    } else { console.error("[DEBUG] Listen button element NOT found!"); }
 
     // --- Core Functions ---
 
     /** Clears the main content area */
     function clearMainContent() {
-        console.log("[DEBUG] Clearing main content area..."); // Log clearing
+        console.log("[DEBUG] Clearing main content area...");
         if (mainContentArea) {
             mainContentArea.innerHTML = '';
-            // Map instance cleanup might be needed if it exists
             if (mapInstance) {
-                try { mapInstance.setTarget(null); } catch(e) { console.warn("Minor error detaching map target:", e); }
-                mapInstance = null;
-                 console.log("[DEBUG] Cleared previous map instance reference.");
+                try { mapInstance.setTarget(null); } catch(e) { console.warn("[DEBUG] Minor error detaching map target:", e); }
+                mapInstance = null; console.log("[DEBUG] Cleared previous map instance reference.");
             }
-        } else {
-            console.error("[DEBUG] Main content area not found in clearMainContent!");
-        }
+        } else { console.error("[DEBUG] Main content area not found in clearMainContent!"); }
     }
 
     /** Displays content (text, chart, map) in the main area */
     function displayContent({ text = null, chartData = null, mapData = null, userQuery = null }) {
-        console.log("[DEBUG] Entering displayContent function."); // Log entry
-        // Ensure content area exists before proceeding
-        if (!mainContentArea) {
-             console.error("[DEBUG] Main content area not found in displayContent! Cannot display.");
-             displayError("Internal UI Error: Cannot find content display area.");
-             return; // Stop execution if main area isn't found
-        }
-
+        console.log("[DEBUG] Entering displayContent function.");
+        if (!mainContentArea) { console.error("[DEBUG] Main content area not found in displayContent! Cannot display."); displayError("Internal UI Error: Cannot find content display area."); return; }
         clearMainContent(); // Clear previous content first
 
-        // 1. Display User Query Briefly (Optional UX)
+        // 1. Display User Query Briefly
         if (userQuery) {
             console.log("[DEBUG] Displaying temporary user query:", userQuery);
-            const queryWrapper = document.createElement('div');
-            queryWrapper.classList.add('content-wrapper', 'user-query-display');
+            const queryWrapper = document.createElement('div'); queryWrapper.classList.add('content-wrapper', 'user-query-display');
             queryWrapper.innerHTML = `<span>You asked: "${userQuery.replace(/</g, "<").replace(/>/g, ">")}"</span>`;
-            queryWrapper.style.backgroundColor = 'var(--user-message-bg)'; // Example style
-            queryWrapper.style.textAlign = 'center'; queryWrapper.style.fontStyle = 'italic';
-            mainContentArea.appendChild(queryWrapper);
-            console.log("[DEBUG] User query wrapper appended.");
-             // Remove it after delay
-             setTimeout(() => { if (queryWrapper.parentNode === mainContentArea) { queryWrapper.style.transition = 'opacity 0.3s ease-out'; queryWrapper.style.opacity = '0'; setTimeout(() => queryWrapper.remove(), 300); } }, 1500);
+            queryWrapper.style.cssText = "background-color: var(--user-message-bg); text-align: center; font-style: italic; margin-bottom: 10px;"; // Inline styles for simplicity
+            mainContentArea.appendChild(queryWrapper); console.log("[DEBUG] User query wrapper appended.");
+            setTimeout(() => { if (queryWrapper.parentNode === mainContentArea) { queryWrapper.style.transition = 'opacity 0.3s ease-out'; queryWrapper.style.opacity = '0'; setTimeout(() => queryWrapper.remove(), 300); } }, 1500);
         }
 
         // 2. Display Assistant Text Response
         if (text) {
             console.log("[DEBUG] Preparing text content wrapper...");
-            const textWrapper = document.createElement('div');
-            textWrapper.classList.add('content-wrapper');
-            textWrapper.id = 'response-text-area';
-            let formattedText = text.replace(/</g, "<").replace(/>/g, ">"); // Sanitize first
-            formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
-            formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');       // Italic
-            formattedText = formattedText.replace(/\\n/g, '<br>'); // Handle explicit \n
-            textWrapper.innerHTML = formattedText; // Use innerHTML for formatting tags
-            mainContentArea.appendChild(textWrapper); // Append to main area
-            console.log("[DEBUG] Text content wrapper appended.");
+            const textWrapper = document.createElement('div'); textWrapper.classList.add('content-wrapper'); textWrapper.id = 'response-text-area';
+            let formattedText = text.replace(/</g, "<").replace(/>/g, ">"); formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>'); formattedText = formattedText.replace(/\\n/g, '<br>');
+            textWrapper.innerHTML = formattedText;
+            mainContentArea.appendChild(textWrapper); console.log("[DEBUG] Text content wrapper appended.");
             speakResponse(text); // Speak the original text
-        } else {
-            console.log("[DEBUG] No text content to display.");
-        }
+        } else { console.log("[DEBUG] No text content to display."); }
 
         // 3. Display Chart
         if (chartData && supportsChartJS) {
             console.log("[DEBUG] Preparing chart content wrapper...");
-            const chartWrapper = document.createElement('div');
-            chartWrapper.classList.add('content-wrapper');
-            chartWrapper.id = 'chart-placeholder';
-            mainContentArea.appendChild(chartWrapper); // Append wrapper
-            console.log("[DEBUG] Chart wrapper appended. Calling createDataVisualization...");
-            createDataVisualization(chartData, chartWrapper); // Pass wrapper as anchor
-        } else if (chartData && !supportsChartJS) {
-            console.warn("[DEBUG] Chart data received, but Chart.js not supported/loaded.");
-        }
+            const chartWrapper = document.createElement('div'); chartWrapper.classList.add('content-wrapper'); chartWrapper.id = 'chart-placeholder';
+            mainContentArea.appendChild(chartWrapper); console.log("[DEBUG] Chart wrapper appended. Calling createDataVisualization...");
+            createDataVisualization(chartData, chartWrapper); // Pass wrapper
+        } else if (chartData && !supportsChartJS) { console.warn("[DEBUG] Chart data received, but Chart.js not supported/loaded."); }
 
         // 4. Display Map
         if (mapData && supportsOpenLayers) {
              console.log("[DEBUG] Preparing map content wrapper...");
-             const mapWrapper = document.createElement('div');
-             mapWrapper.classList.add('content-wrapper');
-             mapWrapper.id = 'map-placeholder';
-             mainContentArea.appendChild(mapWrapper); // Append wrapper
-             console.log("[DEBUG] Map wrapper appended. Calling createMapVisualization...");
-             createMapVisualization(mapData, mapWrapper); // Pass wrapper as anchor
-        } else if (mapData && !supportsOpenLayers) {
-             console.warn("[DEBUG] Map data received, but OpenLayers (ol) not supported/loaded.");
-        }
+             const mapWrapper = document.createElement('div'); mapWrapper.classList.add('content-wrapper'); mapWrapper.id = 'map-placeholder';
+             mainContentArea.appendChild(mapWrapper); console.log("[DEBUG] Map wrapper appended. Calling createMapVisualization...");
+             createMapVisualization(mapData, mapWrapper); // Pass wrapper
+        } else if (mapData && !supportsOpenLayers) { console.warn("[DEBUG] Map data received, but OpenLayers (ol) not supported/loaded."); }
 
-        // Check if *any* content was added
-        // Use requestAnimationFrame to check after potential async operations like map init delay
+        // Final check after potentially async operations
         requestAnimationFrame(() => {
-            if (mainContentArea.children.length === 0 && !userQuery) { // If nothing was added (and no temp query shown)
-                console.warn("[DEBUG] displayContent finished, but main content area is still empty!");
-                 // Display a fallback message directly if nothing else worked
-                 const fallbackWrapper = document.createElement('div');
-                 fallbackWrapper.classList.add('content-wrapper');
-                 fallbackWrapper.innerHTML = '<span>Received response, but failed to display content.</span>';
-                 mainContentArea.appendChild(fallbackWrapper);
-            } else {
-                 console.log("[DEBUG] displayContent finished populating content area (final check).");
-            }
+            if (mainContentArea.children.length === 0 && !userQuery) { console.warn("[DEBUG] displayContent finished, but main content area is still empty!"); const fw = document.createElement('div'); fw.classList.add('content-wrapper'); fw.innerHTML = '<span>Received response, but failed to display content.</span>'; mainContentArea.appendChild(fw); }
+            else { console.log("[DEBUG] displayContent finished populating content area (final check)."); }
         });
-
-
-        scrollToTopMainContent(); // Scroll to top of content area
+        scrollToTopMainContent();
     } // End displayContent
 
     /** Creates a Chart.js chart */
     function createDataVisualization(vizData, containerElement) {
-        if (!supportsChartJS || !vizData || !containerElement) { console.error("Chart.js unavailable or missing data/container."); return; }
-        if (vizData.type !== 'bar') { console.warn("Unhandled viz type:", vizData.type); return; }
-        let chartCanvas = null; // Hold reference to canvas for potential issues
+        if (!supportsChartJS || !vizData || !containerElement) { console.error("[DEBUG] Chart.js unavailable or missing data/container."); return; }
+        if (vizData.type !== 'bar') { console.warn("[DEBUG] Unhandled viz type:", vizData.type); return; }
+        let chartCanvas = null;
         try {
             const canvasId = `chart-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            containerElement.innerHTML = ''; // Clear the placeholder
-            chartCanvas = document.createElement('canvas'); chartCanvas.id = canvasId;
-            containerElement.appendChild(chartCanvas); // Append canvas to the wrapper
-            const ctx = chartCanvas.getContext('2d');
-            if (!ctx) { throw new Error("Could not get 2D context from canvas"); }
+            containerElement.innerHTML = ''; chartCanvas = document.createElement('canvas'); chartCanvas.id = canvasId;
+            containerElement.appendChild(chartCanvas); const ctx = chartCanvas.getContext('2d');
+            if (!ctx) { throw new Error("Could not get 2D context"); }
             new Chart(ctx, { type: 'bar', data: { labels: vizData.labels, datasets: vizData.datasets }, options: { responsive: true, maintainAspectRatio: true, indexAxis: 'y', plugins: { legend: { display: false }, title: { display: true, text: vizData.chart_title || 'Summary', color: '#ccd6f6', font: { size: 14, family:'Roboto' } }, tooltip: { backgroundColor: '#000' } }, scales: { y: { ticks: { color: '#ccd6f6', font: {size: 11}}, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#ccd6f6' }, grid: { color: 'rgba(100, 255, 218, 0.15)' } } } } });
             console.log("[DEBUG] Chart created:", canvasId);
         } catch (error) { console.error("[DEBUG] Error creating chart:", error); if(containerElement) containerElement.innerHTML = "<span>[Chart Display Error]</span>"; }
@@ -252,19 +193,21 @@ document.addEventListener('DOMContentLoaded', () => {
          const isRouteMap = mapVizData.type === 'route' && mapVizData.origin?.coords?.length === 2 && mapVizData.destination?.coords?.length === 2;
          const isPointMap = mapVizData.type === 'point' && mapVizData.latitude != null && mapVizData.longitude != null && !isRouteMap;
          if (!isRouteMap && !isPointMap) { console.error("[DEBUG] Map data missing required coords.", mapVizData); return; }
-         let mapDiv = null; // Hold reference
+         let mapDiv = null;
          console.log(`[DEBUG] Attempting to create ${isRouteMap ? 'route' : 'point'} map:`, mapVizData);
          try {
              const mapId = `map-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-             containerElement.innerHTML = ''; // Clear the placeholder
-             mapDiv = document.createElement('div'); // Create the div OL targets
-             mapDiv.id = mapId; mapDiv.classList.add('map-inner-container'); mapDiv.style.height = '100%'; mapDiv.style.width = '100%';
+             containerElement.innerHTML = ''; // Clear placeholder
+             mapDiv = document.createElement('div'); mapDiv.id = mapId; mapDiv.classList.add('map-inner-container'); mapDiv.style.height = '100%'; mapDiv.style.width = '100%';
              containerElement.appendChild(mapDiv); // Append target div to the wrapper
 
-             // IMPORTANT: Delay map initialization
+             // Delay map initialization slightly longer & check target
              setTimeout(() => {
-                 console.log(`[DEBUG] Initializing OL map in container ${mapId}`);
-                 try {
+                 console.log(`[DEBUG] Starting OL map init in target: ${mapId}`);
+                 const targetElement = document.getElementById(mapId);
+                 if (!targetElement) { console.error(`[DEBUG] Map target element #${mapId} not found!`); if(containerElement) containerElement.innerHTML = "<span>[Map Target Error]</span>"; return; }
+
+                 try { // Nested try for map instance creation
                      const features = []; let viewCenter, viewZoom, extentToFit;
                      const pointStyle=new ol.style.Style({image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:'rgba(100,255,218,.9)'}),stroke:new ol.style.Stroke({color:'#fff',width:2})})});
                      const originStyle=new ol.style.Style({image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:'rgba(0,255,0,.8)'}),stroke:new ol.style.Stroke({color:'#fff',width:2})})});
@@ -283,41 +226,25 @@ document.addEventListener('DOMContentLoaded', () => {
                          const centerCoordsOL = ol.proj.fromLonLat([mapVizData.longitude, mapVizData.latitude]);
                          viewCenter = centerCoordsOL; viewZoom = mapVizData.zoom || 11;
                          const marker = new ol.Feature({ geometry: new ol.geom.Point(centerCoordsOL), name: mapVizData.marker_title || 'Location' }); marker.setStyle(pointStyle); features.push(marker);
-                          console.log("[DEBUG] Point feature created.");
+                         console.log("[DEBUG] Point feature created.");
                      }
 
                      const vectorSource = new ol.source.Vector({ features: features });
                      const vectorLayer = new ol.layer.Vector({ source: vectorSource });
 
                      console.log(`[DEBUG] Creating OL Map instance for target: ${mapId}`);
-                     mapInstance = new ol.Map({
-                         target: mapId, // Target the specific div ID
-                         layers: [ new ol.layer.Tile({ source: new ol.source.OSM() }), vectorLayer ],
-                         view: new ol.View({ center: viewCenter, zoom: viewZoom, maxZoom: 18, minZoom: 2 }),
-                         controls: ol.control.defaults({ attributionOptions: { collapsible: true } }).extend([ new ol.control.ScaleLine() ])
-                     });
+                     mapInstance = new ol.Map({ target: mapId, layers: [ new ol.layer.Tile({ source: new ol.source.OSM() }), vectorLayer ], view: new ol.View({ center: viewCenter, zoom: viewZoom, maxZoom: 18, minZoom: 2 }), controls: ol.control.defaults({ attributionOptions: { collapsible: true } }).extend([ new ol.control.ScaleLine() ]) });
 
-                     if (extentToFit) { // Fit view after map init for routes
+                     if (extentToFit) {
                           console.log("[DEBUG] Fitting map view to extent...");
-                          // Use another short delay for fitting to ensure view is ready
-                          setTimeout(() => {
-                              try {
-                                   mapInstance.getView().fit(extentToFit, { padding: [70, 70, 70, 70], maxZoom: 14, duration: 500 });
-                                   console.log("[DEBUG] Map view fitted.");
-                              } catch(fitError) {
-                                   console.error("[DEBUG] Error fitting map view:", fitError);
-                              }
-                           }, 100);
+                          setTimeout(() => { try { mapInstance.getView().fit(extentToFit, { padding: [70, 70, 70, 70], maxZoom: 14, duration: 500 }); console.log("[DEBUG] Map view fitted."); } catch(fitError) { console.error("[DEBUG] Error fitting map view:", fitError); } }, 150);
                      }
-                     console.log("[DEBUG] OL map instance created:", mapId);
-                     scrollToTopMainContent(); // Scroll again after potential layout shift
+                     console.log("[DEBUG] OL map instance created successfully:", mapId);
+                     scrollToTopMainContent(); // Scroll after map rendered
 
-                  } catch(mapInitError) {
-                      console.error("[DEBUG] Error initializing OpenLayers map:", mapInitError);
-                      if(mapDiv?.parentNode) mapDiv.parentNode.innerHTML = "<span>[Map Init Error]</span>"; // Show error in wrapper
-                  }
-             }, 50); // Delay map init
-         } catch (error) { console.error("[DEBUG] Error setting up map container:", error); if(containerElement) containerElement.innerHTML = "<span>[Map Setup Error]</span>"; }
+                  } catch(mapInitError) { console.error("[DEBUG] Error initializing OpenLayers map instance:", mapInitError); if(containerElement) containerElement.innerHTML = "<span>[Map Init Error]</span>"; } // Show error in container
+             }, 150); // Increased delay
+         } catch (error) { console.error("[DEBUG] Error setting up map container:", error); if(containerElement) containerElement.innerHTML = "<span>[Map Setup Error]</span>"; else { displayContent({ text: '[Error preparing map display]' }); } }
      } // End createMapVisualization
 
     function showLoadingIndicator() { clearMainContent(); updateStatus('Processing...'); if (visualization) visualization.style.animationPlayState = 'running'; if(sendButton) sendButton.disabled = true; if(listenButton) listenButton.disabled = true; if(userInput) userInput.disabled = true; }
@@ -333,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`[DEBUG] sendMessage initiated for question: "${question}"`);
         try {
             const response = await fetch('/ask', { method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify({ question: question }) });
-             console.log(`[DEBUG] Fetch response status: ${response.status}`);
+            console.log(`[DEBUG] Fetch response status: ${response.status}`);
             const data = await response.json().catch(err => { console.error("[DEBUG] JSON Parse Error:", err); return ({ error: `Invalid response (Status: ${response.status})` });});
             console.log("[DEBUG] Received data from backend:", data); // Log received data
 
@@ -352,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         if (selectedVoice) { utterance.voice = selectedVoice; utterance.lang = selectedVoice.lang; console.log(`[DEBUG] Using voice: ${selectedVoice.name} (${utterance.lang})`); }
         else { utterance.lang = 'en-US'; console.log(`[DEBUG] Using default voice (Lang: ${utterance.lang}).`); }
-        utterance.pitch = 1; utterance.rate = 1;
+        utterance.pitch = 1; utterance.rate = 1; // Reset pitch/rate
         utterance.onstart = () => { console.log("[DEBUG] Speech started."); assistantSpeaking = true; updateStatus('Speaking...'); if (visualization) visualization.style.animationPlayState = 'running'; if (listenButton) listenButton.disabled = true; };
         utterance.onend = () => { console.log("[DEBUG] Speech finished."); assistantSpeaking = false; hideLoadingIndicator(); /* Hide loading *after* speech finishes */ if (!isListening && !statusIndicator?.dataset.error) { updateStatus('Idle'); if (visualization) visualization.style.animationPlayState = 'paused'; } if (listenButton) listenButton.disabled = !supportsRecognition; if(userInput) try{userInput.focus();}catch(e){} };
         utterance.onerror = (event) => { console.error('[DEBUG] Speech error:', event.error, event); assistantSpeaking = false; hideLoadingIndicator(); /* Hide loading on error too */ displayError(`Speech error: ${event.error}`); if (!isListening) { updateStatus('Speech Error', true); if (visualization) visualization.style.animationPlayState = 'paused'; } if (listenButton) listenButton.disabled = !supportsRecognition; };

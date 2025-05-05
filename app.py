@@ -123,15 +123,10 @@ def get_weather(location: str):
         weather_data=response.json(); logging.info(f"OK fetch weather {location} ({response.status_code})"); return weather_data, None
     except requests.exceptions.Timeout: logging.error(f"Timeout WeatherAPI {location}"); return None, "Weather service timed out."
     except requests.exceptions.HTTPError as e:
-        status_code = e.response.status_code
-        detail = f"HTTP error {status_code}"
-        error_api_msg = "" # Initialize error message from API
-        try: # Attempt to get more specific error from API JSON response
-            error_api_msg = e.response.json().get('error',{}).get('message','')
-            if error_api_msg: detail += f": {error_api_msg}"
+        status_code = e.response.status_code; detail = f"HTTP error {status_code}"; error_api_msg = "";
+        try: error_api_msg = e.response.json().get('error',{}).get('message',''); detail += f": {error_api_msg}" if error_api_msg else ""
         except Exception as json_err: logging.warning(f"Could not parse JSON error from WeatherAPI response (Status: {status_code}): {json_err}"); pass
-        logging.error(f"HTTP error occurred fetching weather for {location}: {detail}") # Log the detailed error
-        # Return user-friendly messages
+        logging.error(f"HTTP error occurred fetching weather for {location}: {detail}")
         if status_code == 400: return None, f"Could not find weather data for '{location}'. ({error_api_msg or 'Check location'})"
         elif status_code in [401, 403]: return None, "Weather service authentication/authorization failed."
         else: return None, f"Weather service returned an error ({detail})."
@@ -143,16 +138,16 @@ def get_weather(location: str):
 def perform_web_search(query: str, num_results: int = 3):
     """Performs a web search using DuckDuckGo Search library and returns processed results."""
     logging.info(f"DDG search: '{query}' (max={num_results})")
-    processed=[]; results=[]
+    processed = []; results = []
     try:
-        with DDGS(timeout=20) as ddgs: results=list(ddgs.text(query, region='wt-wt', safesearch='moderate', max_results=num_results, backend="lite"))
+        with DDGS(timeout=20) as ddgs: results = list(ddgs.text(query, region='wt-wt', safesearch='moderate', max_results=num_results, backend="lite"))
         if not results: logging.warning(f"DDG no results: '{query}'."); return "", None
         for r in results:
             s=r.get("body","").strip(); t=r.get("title","No title").strip(); l=r.get("href","#")
             if not s or not t: continue
             processed.append(f"Title: {t}\nLink: {l}\nSnippet: {s[:300]}...")
         if not processed: logging.warning(f"DDG no usable results: '{query}'."); return "", None
-        out_str="\n\n---\n\n".join(processed); logging.info(f"DDG OK: '{query}'. Found {len(processed)} usable results."); return out_str, None
+        out_str = "\n\n---\n\n".join(processed); logging.info(f"DDG OK: '{query}'. Found {len(processed)} usable results."); return out_str, None
     except Exception as e: logging.exception(f"DDG search error: '{query}': {e}"); return None, f"Unexpected error during web search ({type(e).__name__})."
 
 # --- Helper to call Gemini ---
@@ -207,28 +202,17 @@ def ask_assistant():
             raw, err=call_gemini(prompt, is_json_output=True)
             if err: logging.error(f"Weather intent fail: {err}"); details.update({"intent_ok": False, "err": f"Intent fail: {err}"})
             else:
-                # *** CORRECTED WEATHER INTENT PARSING ***
-                try: # Parse safely
-                    weather_intent_clean = raw.strip() # Use a specific variable name
-                    # Clean potential markdown fences
-                    if weather_intent_clean.startswith("```json"):
-                        weather_intent_clean = weather_intent_clean[7:-3].strip()
-                    elif weather_intent_clean.startswith("```"):
-                         weather_intent_clean = weather_intent_clean[3:-3].strip()
-                    # Parse the cleaned JSON string
+                try: # Parse weather intent JSON safely
+                    weather_intent_clean = raw.strip()
+                    if weather_intent_clean.startswith("```json"): weather_intent_clean = weather_intent_clean[7:-3].strip()
+                    elif weather_intent_clean.startswith("```"): weather_intent_clean = weather_intent_clean[3:-3].strip()
                     weather_intent_data = json.loads(weather_intent_clean)
                     is_weather = weather_intent_data.get("is_weather_query") is True
                     weather_loc = weather_intent_data.get("location")
-                    # Handle empty string for location
                     if isinstance(weather_loc, str) and not weather_loc.strip(): weather_loc=None
                     details["intent_ok"]=True; logging.info(f"Weather intent: {is_weather}, loc='{weather_loc}'")
-                except json.JSONDecodeError as json_err:
-                     logging.error(f"Weather intent JSON decode error: {json_err}. Raw response: {raw}", exc_info=False)
-                     details.update({"intent_ok":False, "err":f"Weather JSON parse error: {json_err}"})
-                except Exception as e:
-                     logging.exception(f"Unexpected error processing weather intent JSON: {e}")
-                     details.update({"intent_ok":False, "err":f"Weather JSON processing error: {type(e).__name__}"})
-                # *** END CORRECTION ***
+                except json.JSONDecodeError as json_err: logging.error(f"Weather intent JSON decode error: {json_err}. Raw response: {raw}", exc_info=False); details.update({"intent_ok":False, "err":f"Weather JSON parse error: {json_err}"})
+                except Exception as e: logging.exception(f"Unexpected error processing weather intent JSON: {e}"); details.update({"intent_ok":False, "err":f"Weather JSON processing error: {type(e).__name__}"})
         else: details["intent_ok"] = None # Skipped
 
         # 1b. Check Routing Intent (If not weather)
@@ -237,8 +221,8 @@ def ask_assistant():
             logging.debug("Sending routing intent prompt...")
             raw, err=call_gemini(prompt, is_json_output=True)
             if not err:
-                try: # Parse safely
-                    routing_intent_clean = raw.strip(); # Use specific variable
+                try: # Parse routing intent JSON safely
+                    routing_intent_clean = raw.strip();
                     if routing_intent_clean.startswith("```json"): routing_intent_clean=routing_intent_clean[7:-3].strip()
                     elif routing_intent_clean.startswith("```"): routing_intent_clean=routing_intent_clean[3:-3].strip()
                     routing_intent_data = json.loads(routing_intent_clean); is_routing=routing_intent_data.get("is_routing_query") is True; route_origin=routing_intent_data.get("origin"); route_dest=routing_intent_data.get("destination")
@@ -246,9 +230,7 @@ def ask_assistant():
                     if isinstance(route_dest,str) and not route_dest.strip(): route_dest=None
                     if is_routing and (not route_origin or not route_dest): is_routing=False; logging.warning("Routing intent but missing origin/dest."); route_origin=None; route_dest=None;
                     details.update({"route_intent":is_routing, "route_origin":route_origin, "route_dest":route_dest}); logging.info(f"Routing intent: {is_routing}, Orig='{route_origin}', Dest='{route_dest}'")
-                except json.JSONDecodeError as json_err:
-                    logging.error(f"Routing intent JSON decode error: {json_err}. Raw response: {raw}", exc_info=False)
-                    details.update({"route_intent":False, "err":f"Routing JSON parse error: {json_err}"})
+                except json.JSONDecodeError as json_err: logging.error(f"Routing intent JSON decode error: {json_err}. Raw response: {raw}", exc_info=False); details.update({"route_intent":False, "err":f"Routing JSON parse error: {json_err}"})
                 except Exception as e: logging.exception(f"Unexpected error processing routing intent JSON: {e}"); details.update({"route_intent":False, "err":f"Routing JSON processing error: {type(e).__name__}"})
             else: logging.error(f"Routing intent fail: {err}"); details["err"]=f"Routing intent fail: {err}"
 
@@ -284,41 +266,37 @@ def ask_assistant():
                  details.update({"origin_coords":list(origin_coords), "dest_coords":list(dest_coords)})
                  map_data={"type":"route", "origin":{"name":route_origin, "coords":list(origin_coords)}, "destination":{"name":route_dest, "coords":list(dest_coords)}}
                  logging.info("Prepared map data for routing points.")
-                 prompt=f"You are Friday. User asked for route: {route_origin}->{route_dest}. You will show a map. Provide brief intro text like 'Okay, showing map for route from {route_origin} to {route_dest}.'"
-                 final_text,_=call_gemini(prompt); final_text=final_text or f"Okay, here's map for {route_origin} and {route_dest}."; details["final_src"]="routing_map_intro_ai"
+                 # Use Optimized Routing Intro Prompt
+                 prompt = f"""You are Friday. User asked for route: {route_origin} -> {route_dest}.
+A map showing these locations is being displayed separately.
+Provide ONLY a very brief introductory text confirming the request, like 'Okay, showing the map for the route from {route_origin} to {route_dest}.' or 'Here are the locations for {route_origin} to {route_dest} on the map.'
+DO NOT mention any inability to display maps. DO NOT suggest using other map applications. Just the brief intro.
+Intro Text:"""
+                 final_text,_=call_gemini(prompt)
+                 # Robust fallback / length check for intro text
+                 final_text = final_text or f"Showing map for {route_origin} to {route_dest}."
+                 if len(final_text) > 150: logging.warning("AI generated long intro for route map, using fallback."); final_text = f"Showing map for {route_origin} to {route_dest}."
+                 details["final_src"]="routing_map_intro_ai"
 
         # === Step 3: Fallback to Search or General AI ===
         if final_text is None:
             # Check Search Needed
-            details["search_check"]=True; needed, search_query=False, None # Renamed query variable
+            details["search_check"]=True; needed, search_query=False, None # Renamed variable
             search_check_prompt=f"""Does user query "{question}" likely need recent info/web search? ONLY JSON: {{"search_needed": boolean, "search_query": string_or_null (effective query if needed)}}."""
             raw, err=call_gemini(search_check_prompt, is_json_output=True)
             if err: logging.error(f"Search check fail: {err}"); details["err"]=f"Search check fail: {err}"
             else:
-                # *** CORRECTED SEARCH INTENT PARSING ***
-                try: # Parse safely
-                    search_check_clean = raw.strip() # Assign raw response
-                    # Clean potential markdown fences
-                    if search_check_clean.startswith("```json"):
-                        search_check_clean = search_check_clean[7:-3].strip()
-                    elif search_check_clean.startswith("```"):
-                         search_check_clean = search_check_clean[3:-3].strip()
-                    # Parse the cleaned JSON string
+                try: # Parse search intent JSON safely
+                    search_check_clean = raw.strip()
+                    if search_check_clean.startswith("```json"): search_check_clean = search_check_clean[7:-3].strip()
+                    elif search_check_clean.startswith("```"): search_check_clean = search_check_clean[3:-3].strip()
                     search_check_data = json.loads(search_check_clean)
                     needed = search_check_data.get("search_needed") is True
-                    search_query = search_check_data.get("search_query") # Assign to search_query
-                    # Handle empty string for query (treat as null)
-                    if isinstance(search_query, str) and not search_query.strip():
-                         search_query = None
-                    details["search_q"]=search_query # Store the final query
-                    logging.info(f"Search check result: needed={needed}, query='{search_query}'")
-                except json.JSONDecodeError as json_err:
-                    logging.error(f"Search check JSON decode error: {json_err}. Raw response: {raw}", exc_info=False)
-                    details["err"] = f"Search check JSON parse error: {json_err}"
-                except Exception as e:
-                    logging.exception(f"Unexpected error processing search check JSON: {e}")
-                    details["err"] = f"Search check JSON processing error: {type(e).__name__}"
-                # *** END CORRECTION ***
+                    search_query = search_check_data.get("search_query")
+                    if isinstance(search_query, str) and not search_query.strip(): search_query=None
+                    details["search_q"]=search_query; logging.info(f"Search check: needed={needed}, query='{search_query}'")
+                except json.JSONDecodeError as json_err: logging.error(f"Search check JSON decode error: {json_err}. Raw: {raw}", exc_info=False); details["err"]=f"Search JSON parse error: {json_err}"
+                except Exception as e: logging.exception(f"Unexpected error processing search check JSON: {e}"); details["err"]=f"Search JSON processing error: {type(e).__name__}"
 
             # Perform Search
             if needed and search_query:
