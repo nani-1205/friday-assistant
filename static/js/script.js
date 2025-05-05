@@ -14,59 +14,86 @@ document.addEventListener('DOMContentLoaded', () => {
     let isListening = false;
     let synth = window.speechSynthesis;
     let assistantSpeaking = false;
-    let currentAssistantMessageElement = null; // Track the text element for chart anchoring/speaking class
-    let availableVoices = []; // Store loaded voices
-    let selectedVoice = null; // Store the chosen voice object
+    let currentAssistantMessageElement = null; // Track the text element for chart/map anchoring & speaking class
+    let availableVoices = [];
+    let selectedVoice = null;
 
     // --- Feature Detection ---
     const isSecureContext = window.isSecureContext;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const supportsRecognition = !!SpeechRecognition;
     const supportsSynthesis = !!synth;
+    const supportsChartJS = typeof Chart !== 'undefined';
+    const supportsOpenLayers = typeof ol !== 'undefined';
 
     // --- Function to Load and Select Voices ---
     function loadAndSelectVoice() {
         if (!supportsSynthesis) { console.warn("Speech Synthesis not supported."); return; }
-        availableVoices = synth.getVoices();
-        console.log("Available Voices:", availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, local: v.localService })));
-        if (availableVoices.length > 0) {
+        try {
+            availableVoices = synth.getVoices();
+             if (!availableVoices || availableVoices.length === 0) {
+                 // Some browsers might return null or empty initially before event fires
+                 console.warn("Voice list empty or unavailable, waiting for 'voiceschanged'.");
+                 return;
+             }
+            console.log("Available Voices:", availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, local: v.localService })));
             const targetLang = 'en-US'; const preferredNames = ['google us english', 'microsoft zira', 'samantha', 'female'];
             selectedVoice = availableVoices.find(v => v.lang === targetLang && preferredNames.some(n => v.name.toLowerCase().includes(n)) && !v.name.toLowerCase().includes('male')); // 1. Preferred Female
             if (!selectedVoice) selectedVoice = availableVoices.find(v => v.lang === targetLang && v.name.toLowerCase().includes('female') && !v.name.toLowerCase().includes('male')); // 2. Any Female
             if (!selectedVoice) selectedVoice = availableVoices.find(v => v.lang === targetLang && !v.localService); // 3. Cloud (might be male)
             if (!selectedVoice) selectedVoice = availableVoices.find(v => v.lang === targetLang); // 4. First US
-            if (!selectedVoice) selectedVoice = availableVoices.find(v => v.default); // 5. Default
+            if (!selectedVoice) selectedVoice = availableVoices.find(v => v.default && v.lang.startsWith('en')); // 5. Default (any English)
             if (!selectedVoice && availableVoices.length > 0) selectedVoice = availableVoices[0]; // 6. Absolute first
             if (selectedVoice) console.log(`Selected Voice: ${selectedVoice.name} (Lang: ${selectedVoice.lang}, Local: ${selectedVoice.localService})`);
-            else console.warn("Could not find a suitable voice. Using browser default.");
-        } else console.warn("Voice list empty. Waiting for 'voiceschanged' event.");
+            else console.warn("Could not find any suitable voice. Using browser default.");
+        } catch (error) {
+             console.error("Error getting or processing voices:", error);
+        }
     }
 
     // --- Initial Checks & Setup ---
     if (!isSecureContext && supportsRecognition) displayPersistentError("Warning: Mic may not work over HTTP.");
     if (!supportsRecognition) { if(listenButton){listenButton.disabled = true; listenButton.title = 'Mic not supported';} updateStatus('Mic not supported'); }
     if (!supportsSynthesis) console.warn('Speech Synthesis not supported.');
-    else { loadAndSelectVoice(); if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadAndSelectVoice; }
+    else {
+        // Wait for voices to be loaded
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadAndSelectVoice;
+        } else {
+             // Fallback for browsers not supporting onvoiceschanged (less reliable)
+             setTimeout(loadAndSelectVoice, 500);
+        }
+        loadAndSelectVoice(); // Attempt initial load immediately too
+    }
+    if (!supportsChartJS) console.warn('Chart.js library not loaded. Chart visualizations disabled.');
+    if (!supportsOpenLayers) console.warn('OpenLayers library (ol) not loaded. Map visualizations disabled.');
+
 
     // --- Initialize Speech Recognition ---
     if (supportsRecognition) {
-        recognition = new SpeechRecognition(); Object.assign(recognition, { continuous: false, lang: 'en-US', interimResults: false, maxAlternatives: 1 });
-        recognition.onstart = () => { isListening = true; if(listenButton) listenButton.classList.add('listening'); updateStatus('Listening...'); if (visualization) visualization.style.animationPlayState = 'running'; clearError(); };
-        recognition.onresult = (event) => { const transcript = event.results[event.results.length - 1][0].transcript.trim(); console.log('Transcript:', transcript); if (transcript) { userInput.value = transcript; sendMessage(); } };
-        recognition.onerror = (event) => { console.error('Mic Error:', event.error, event.message); let msg = `Mic error: ${event.error}`; if (event.error === 'no-speech') msg = 'No speech detected.'; else if (event.error === 'audio-capture') msg = 'Mic capture failed.'; else if (event.error === 'not-allowed') {msg = 'Mic access denied.'; if (!isSecureContext) msg += ' Needs HTTPS.';} else msg = `Mic error: ${event.message || event.error}`; displayError(msg); updateStatus('Mic Error', true); };
-        recognition.onend = () => { isListening = false; if(listenButton) listenButton.classList.remove('listening'); if (!assistantSpeaking && !statusIndicator.dataset.error) updateStatus('Idle'); if (visualization && !assistantSpeaking) visualization.style.animationPlayState = 'paused'; };
+        try {
+            recognition = new SpeechRecognition();
+            Object.assign(recognition, { continuous: false, lang: 'en-US', interimResults: false, maxAlternatives: 1 });
+            recognition.onstart = () => { isListening = true; if(listenButton) listenButton.classList.add('listening'); updateStatus('Listening...'); if (visualization) visualization.style.animationPlayState = 'running'; clearError(); };
+            recognition.onresult = (event) => { const transcript = event.results[event.results.length - 1][0].transcript.trim(); console.log('Transcript:', transcript); if (transcript) { userInput.value = transcript; sendMessage(); } };
+            recognition.onerror = (event) => { console.error('Mic Error:', event.error, event.message); let msg=`Mic error: ${event.error}`; if(event.error==='no-speech')msg='No speech.'; else if(event.error==='not-allowed'){msg='Mic access denied.'; if(!isSecureContext)msg+=' Needs HTTPS.';} else msg=`Mic error: ${event.message||event.error}`; displayError(msg); updateStatus('Mic Error', true); };
+            recognition.onend = () => { isListening = false; if(listenButton) listenButton.classList.remove('listening'); if (!assistantSpeaking && !statusIndicator?.dataset.error) updateStatus('Idle'); if (visualization && !assistantSpeaking) visualization.style.animationPlayState = 'paused'; };
+        } catch (error) {
+             console.error("Failed to initialize SpeechRecognition:", error);
+             if(listenButton) listenButton.disabled = true; listenButton.title = 'Mic init failed'; updateStatus('Mic Init Error', true);
+        }
     }
 
     // --- Event Listeners ---
     if(sendButton) sendButton.addEventListener('click', sendMessage);
     if(userInput) userInput.addEventListener('keypress', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); } });
     if(listenButton) listenButton.addEventListener('click', () => {
-        if (!supportsRecognition) { displayError("Mic not supported."); return; }
-        if (isListening) { try { recognition.stop(); } catch (e) { console.error("Err stop recognition:", e); isListening = false; listenButton.classList.remove('listening'); if (!assistantSpeaking && !statusIndicator.dataset.error) updateStatus('Idle'); if (visualization && !assistantSpeaking) visualization.style.animationPlayState = 'paused'; } }
+        if (!supportsRecognition || !recognition) { displayError("Mic not supported/initialized."); return; }
+        if (isListening) { try { recognition.stop(); } catch (e) { console.error("Err stop recognition:", e); isListening=false; listenButton.classList.remove('listening'); /*...*/ } }
         else {
             if (!navigator.mediaDevices?.getUserMedia) { displayError('Mic access unavailable (needs HTTPS?).'); updateStatus('Mic Access Error', true); return; }
             navigator.mediaDevices.getUserMedia({ audio: true }).then(() => { console.log("Mic access granted."); try { clearError(); if(synth?.speaking) synth.cancel(); recognition.start(); } catch (e) { console.error("Err start recognition:", e); displayError(`Mic start error: ${e.message}`); updateStatus('Mic Start Error', true); isListening = false; } })
-                .catch(err => { console.error("Mic access err:", err.name, err.message); let msg = 'Mic access denied.'; if(err.name === 'NotFoundError') msg = 'No mic found.'; else if (err.name === 'NotReadableError') msg = 'Mic busy/hardware error.'; else msg = `Mic access error: ${err.message}`; if (!isSecureContext && err.name === 'NotAllowedError') msg += ' Needs HTTPS.'; displayError(msg); updateStatus('Mic Access Denied', true); });
+                .catch(err => { console.error("Mic access err:", err.name, err.message); let msg='Mic access denied.'; if(err.name==='NotFoundError')msg='No mic found.'; else if(err.name==='NotReadableError')msg='Mic busy/hardware error.'; else msg=`Mic access error: ${err.message}`; if (!isSecureContext && err.name==='NotAllowedError') msg+=' Needs HTTPS.'; displayError(msg); updateStatus('Mic Access Denied', true); });
         }
     });
 
@@ -78,44 +105,62 @@ document.addEventListener('DOMContentLoaded', () => {
         let imgContainer = null;
         if (imageUrl) { imgContainer = document.createElement('div'); imgContainer.classList.add('holographic-image-container'); const img = document.createElement('img'); img.src = imageUrl; img.alt = "Assistant image"; img.classList.add('holographic-image'); img.onerror = () => { console.error("Img load failed:", imageUrl); imgContainer.innerHTML = '<span>[Image load error]</span>'; }; imgContainer.appendChild(img); messageElement.classList.add('contains-hologram'); }
         const existingLoading = chatbox.querySelector('.message.loading'); if (existingLoading) existingLoading.remove();
-        chatbox.appendChild(messageElement); if (imgContainer) chatbox.appendChild(imgContainer);
+        if(chatbox) chatbox.appendChild(messageElement); if (imgContainer && chatbox) chatbox.appendChild(imgContainer);
         scrollToBottom(); return messageElement;
     }
 
     function createDataVisualization(vizData, anchorElement) {
-        if (!vizData || !anchorElement || !Chart) { console.error("Chart.js unavailable, or missing vizData/anchorElement."); return; }
+        if (!supportsChartJS || !vizData || !anchorElement) { console.error("Chart.js unavailable, or missing vizData/anchorElement."); return; }
         if (vizData.type !== 'bar') { console.warn("Unhandled viz type:", vizData.type); return; }
+        let chartContainer = null; // Declare here for access in catch
         try {
             const canvasId = `chart-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const chartContainer = document.createElement('div'); chartContainer.classList.add('chart-container');
+            chartContainer = document.createElement('div'); chartContainer.classList.add('chart-container');
             const canvas = document.createElement('canvas'); canvas.id = canvasId; chartContainer.appendChild(canvas);
-            anchorElement.parentNode.insertBefore(chartContainer, anchorElement.nextSibling || null); // Insert after anchor
+            anchorElement.parentNode.insertBefore(chartContainer, anchorElement.nextSibling || null);
             const ctx = canvas.getContext('2d');
-            new Chart(ctx, {
-                type: 'bar', data: { labels: vizData.labels, datasets: vizData.datasets },
-                options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false }, title: { display: true, text: vizData.chart_title || 'Summary', color: '#ccd6f6', font: { size: 14 } }, tooltip: { backgroundColor: '#000' } }, scales: { y: { ticks: { color: '#ccd6f6', font: {size: 11}}, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#ccd6f6' }, grid: { color: 'rgba(100, 255, 218, 0.15)' } } } }
-            });
+            new Chart(ctx, { type: 'bar', data: { labels: vizData.labels, datasets: vizData.datasets }, options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false }, title: { display: true, text: vizData.chart_title || 'Summary', color: '#ccd6f6', font: { size: 14 } }, tooltip: { backgroundColor: '#000' } }, scales: { y: { ticks: { color: '#ccd6f6', font: {size: 11}}, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#ccd6f6' }, grid: { color: 'rgba(100, 255, 218, 0.15)' } } } } });
             console.log("Chart created:", canvasId); scrollToBottom();
         } catch (error) { console.error("Error creating chart:", error); if(chartContainer) chartContainer.innerHTML = "<span>[Viz Error]</span>"; }
     }
 
+    function createMapVisualization(mapVizData, anchorElement) {
+        if (!supportsOpenLayers || !mapVizData || !anchorElement) { console.error("OpenLayers lib (ol) unavailable, or missing mapVizData/anchorElement."); return; }
+        if (mapVizData.latitude == null || mapVizData.longitude == null) { console.error("Missing lat/lon in map data."); return; }
+        let mapContainer = null; // Declare here for access in catch
+        console.log("Attempting to create map for:", mapVizData);
+        try {
+            const mapId = `map-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            mapContainer = document.createElement('div'); mapContainer.id = mapId; mapContainer.classList.add('map-container');
+            anchorElement.parentNode.insertBefore(mapContainer, anchorElement.nextSibling || null);
+            const centerCoords = ol.proj.fromLonLat([mapVizData.longitude, mapVizData.latitude]);
+            const zoom = mapVizData.zoom || 11;
+            const marker = new ol.Feature({ geometry: new ol.geom.Point(centerCoords), name: mapVizData.marker_title || 'Location' });
+            marker.setStyle(new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({color: 'rgba(255,0,0,0.8)'}), stroke: new ol.style.Stroke({color:'#fff', width: 2}) }) }));
+            const vectorSource = new ol.source.Vector({ features: [marker] });
+            new ol.Map({ target: mapId, layers: [ new ol.layer.Tile({ source: new ol.source.OSM() }), new ol.layer.Vector({ source: vectorSource }) ], view: new ol.View({ center: centerCoords, zoom: zoom, maxZoom: 18, minZoom: 3 }) });
+            console.log("OpenLayers map created:", mapId); scrollToBottom();
+        } catch (error) { console.error("Error creating OpenLayers map:", error); if(mapContainer) mapContainer.innerHTML = "<span>[Map Error]</span>"; }
+    }
+
     function showLoadingIndicator() { addMessageToChat('Assistant', 'Processing', { isLoading: true }); updateStatus('Processing...'); if (visualization) visualization.style.animationPlayState = 'running'; if(sendButton) sendButton.disabled = true; if(listenButton) listenButton.disabled = true; if(userInput) userInput.disabled = true; }
-    function hideLoadingIndicator() { const loadingIndicator = chatbox.querySelector('.message.loading'); if (loadingIndicator) loadingIndicator.remove(); if (!assistantSpeaking && !isListening && !statusIndicator?.dataset.error) updateStatus('Idle'); if (visualization && !assistantSpeaking && !isListening) visualization.style.animationPlayState = 'paused'; if(sendButton) sendButton.disabled = false; if(listenButton) listenButton.disabled = !supportsRecognition || assistantSpeaking; if(userInput) { userInput.disabled = false; userInput.focus(); }}
+    function hideLoadingIndicator() { const loadingIndicator = chatbox?.querySelector('.message.loading'); if (loadingIndicator) loadingIndicator.remove(); if (!assistantSpeaking && !isListening && !statusIndicator?.dataset.error) updateStatus('Idle'); if (visualization && !assistantSpeaking && !isListening) visualization.style.animationPlayState = 'paused'; if(sendButton) sendButton.disabled = false; if(listenButton) listenButton.disabled = !supportsRecognition || assistantSpeaking; if(userInput) { userInput.disabled = false; userInput.focus(); }}
     function displayError(message, isPersistent = false) { if(errorMessageDiv) { errorMessageDiv.textContent = message; errorMessageDiv.style.display = 'block'; errorMessageDiv.dataset.persistent = String(isPersistent); if (!isPersistent) setTimeout(clearError, 7000); } else console.error("Error display DOM element missing.");}
     function displayPersistentError(message) { displayError(message, true); }
     function clearError() { if (errorMessageDiv && errorMessageDiv.dataset.persistent !== 'true') { errorMessageDiv.textContent = ''; errorMessageDiv.style.display = 'none'; }}
     function updateStatus(text, isError = false) { if(statusIndicator) { statusIndicator.textContent = text; if (isError) { statusIndicator.style.color = 'var(--error-color)'; statusIndicator.dataset.error = 'true'; } else { statusIndicator.style.color = '#8892b0'; delete statusIndicator.dataset.error; } } }
 
     async function sendMessage() {
-        const question = userInput.value.trim(); if (!question || (sendButton && sendButton.disabled)) return;
-        clearError(); addMessageToChat('User', question); userInput.value = ''; showLoadingIndicator();
+        const question = userInput?.value.trim(); if (!question || (sendButton && sendButton.disabled)) return;
+        clearError(); addMessageToChat('User', question); if(userInput) userInput.value = ''; showLoadingIndicator();
         try {
             const response = await fetch('/ask', { method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify({ question: question }) });
             const data = await response.json().catch(err => ({ error: `Invalid response (Status: ${response.status})` }));
             if (!response.ok || (data && data.error)) { const errorMsg = `Error: ${data.error || response.statusText || 'Unknown'}`; console.error('Server/App Error:', response.status, data); displayError(errorMsg); addMessageToChat('Assistant', `Sorry, error processing.`); }
             else if (data && data.response) {
-                currentAssistantMessageElement = addMessageToChat('Assistant', data.response, { imageUrl: data.image_url }); // Store ref to text bubble
-                if (data.visualization_data) { createDataVisualization(data.visualization_data, currentAssistantMessageElement); } // Create chart after text
+                currentAssistantMessageElement = addMessageToChat('Assistant', data.response, { imageUrl: data.image_url }); // Add text first, store ref
+                if (data.visualization_data && supportsChartJS) { createDataVisualization(data.visualization_data, currentAssistantMessageElement); } // Add chart after text
+                if (data.map_data && supportsOpenLayers) { createMapVisualization(data.map_data, currentAssistantMessageElement); } // Add map after text (or chart)
                 speakResponse(data.response);
             } else { console.error('Invalid success structure:', data); displayError('Unexpected response structure.'); addMessageToChat('Assistant', 'Sorry, unexpected response.'); }
         } catch (error) { console.error('Network/Fetch Error:', error); const errorMsg = 'Network error reaching assistant.'; displayError(errorMsg); addMessageToChat('Assistant', 'Sorry, trouble connecting.'); }
