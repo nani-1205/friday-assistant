@@ -4,49 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.A.Y. Assistant</title>
-    <!-- Add Font Awesome for icons -->
+    <!-- Icons, Chart.js, OpenLayers -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Add Chart.js library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <!-- Add OpenLayers library -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.1.0/ol.css">
     <script src="https://cdn.jsdelivr.net/npm/ol@v9.1.0/dist/ol.js"></script>
-    <!-- Link main stylesheet -->
+    <!-- Main Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Add Favicon (Optional - Create a favicon.ico file in static/) -->
+    <!-- Optional Favicon -->
     <!-- <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}"> -->
 </head>
 <body>
-    <div class="container">
-        <header>
-            <!-- Visualization placeholder -->
-            <div id="ai-visualization">
-                <div class="pulse-ring"></div>
-            </div>
-            <h1>F.R.I.D.A.Y.</h1>
-            <div id="status-indicator">Idle</div>
-        </header>
+    <!-- Removed outer .container -->
 
-        <div id="chatbox">
-            <!-- Initial Assistant Message -->
-             <div class="message assistant"><span>Hello! How can I assist you today?</span></div>
-            <!-- Chat messages and visualizations will appear here -->
+    <header>
+        <!-- Visualization placeholder -->
+        <div id="ai-visualization">
+            <div class="pulse-ring"></div>
         </div>
+        <h1>F.R.I.D.A.Y.</h1>
+        <div id="status-indicator">Idle</div>
+        <!-- Error display area (now positioned by CSS) -->
+         <div id="error-message" class="error-display"></div>
+    </header>
 
-        <!-- Error display area -->
-        <div id="error-message" class="error-display" style="display: none;"></div>
+    <!-- ****** ADD THIS DIV ****** -->
+    <main id="main-content">
+        <!-- Content will be dynamically added here by script.js -->
+        <!-- Initial greeting will be placed here by JS -->
+    </main>
+    <!-- ************************** -->
 
-        <div id="input-area">
-            <button id="listen-button" title="Start Listening (Requires HTTPS/localhost & Mic Permission)">
-                <i class="fas fa-microphone"></i>
-            </button>
-            <input type="text" id="user-input" placeholder="Type your message or click the mic..." autocomplete="off">
-            <button id="send-button" title="Send Message">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-
-    </div><!-- End .container -->
+    <div id="input-area">
+        <button id="listen-button" title="Start Listening (Requires HTTPS/localhost & Mic Permission)">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <input type="text" id="user-input" placeholder="Type your message or click the mic..." autocomplete="off">
+        <button id="send-button" title="Send Message">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
 
     <!-- Main JavaScript file -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
