@@ -47,7 +47,7 @@ else:
         logging.info(f"Google Gemini configured successfully with model: {GEMINI_MODEL_NAME}")
     except Exception as e:
         logging.critical(f"FATAL: Error configuring Google Gemini or accessing model '{GEMINI_MODEL_NAME}'. AI disabled. Error: {e}", exc_info=True)
-        model = None # Ensure model is None if setup fails
+        model = None
 
 if not WEATHER_API_KEY:
     logging.warning("WEATHER_API_KEY not found. Weather functionality disabled.")
@@ -145,13 +145,9 @@ def perform_web_search(query: str, num_results: int = 5):
         out_str="\n\n---\n\n".join(processed); logging.info(f"DDG OK: '{query}'. Found {len(processed)} results."); return out_str, None
     except Exception as e: logging.exception(f"DDG search error: '{query}': {e}"); return None, f"Unexpected error during web search ({type(e).__name__})."
 
-# --- Helper to call Gemini (Corrected for None model) ---
+# --- Helper to call Gemini ---
 def call_gemini(prompt: str, is_json_output: bool = False):
-    """Helper function to call the Gemini API and handle basic errors/response."""
-    if not model: # Check if the global 'model' is None
-        logging.error("call_gemini attempted but AI Model (global 'model') is not initialized.")
-        return None, "AI Model is not available. Please check server startup logs." # Ensure tuple return
-
+    if not model: logging.error("call_gemini: AI Model unavailable."); return None, "AI Model unavailable." # Ensure tuple return
     mime="application/json" if is_json_output else "text/plain"; sample=prompt.replace('\n',' ')[:150]
     logging.debug(f"Calling Gemini (Out: {mime}). Len: {len(prompt)}. Sample: {sample}...")
     try:
@@ -199,9 +195,12 @@ def ask_assistant():
             raw, err=call_gemini(prompt, is_json_output=True)
             if err: logging.error(f"Weather intent fail: {err}"); details.update({"intent_ok": False, "err": f"Intent fail: {err}"})
             else:
-                try: weather_intent_clean = raw.strip();
-                    if weather_intent_clean.startswith("```json"): weather_intent_clean = weather_intent_clean[7:-3].strip()
-                    elif weather_intent_clean.startswith("```"): weather_intent_clean = weather_intent_clean[3:-3].strip()
+                try:
+                    weather_intent_clean = raw.strip()
+                    if weather_intent_clean.startswith("```json"):
+                        weather_intent_clean = weather_intent_clean[7:-3].strip()
+                    elif weather_intent_clean.startswith("```"):
+                        weather_intent_clean = weather_intent_clean[3:-3].strip()
                     weather_intent_data = json.loads(weather_intent_clean); is_weather=weather_intent_data.get("is_weather_query") is True; weather_loc=weather_intent_data.get("location");
                     if isinstance(weather_loc,str) and not weather_loc.strip(): weather_loc=None
                     details["intent_ok"]=True; logging.info(f"Weather intent: {is_weather}, loc='{weather_loc}'")
@@ -214,10 +213,13 @@ def ask_assistant():
             prompt=f"""Analyze the user query: "{question}". Is the user asking for directions, a route, or travel path between two locations? If yes, identify the Origin and Destination locations. Respond ONLY with a valid JSON object: {{"is_routing_query": boolean, "origin": string_or_null, "destination": string_or_null}}"""
             raw, err=call_gemini(prompt, is_json_output=True)
             if not err:
-                try: routing_intent_clean=raw.strip();
-                    if routing_intent_clean.startswith("```json"): routing_intent_clean=routing_intent_clean[7:-3].strip()
-                    elif routing_intent_clean.startswith("```"): routing_intent_clean=routing_intent_clean[3:-3].strip()
-                    routing_intent_data=json.loads(routing_intent_clean); is_routing=routing_intent_data.get("is_routing_query") is True; route_origin=routing_intent_data.get("origin"); route_dest=routing_intent_data.get("destination")
+                try:
+                    routing_intent_clean = raw.strip();
+                    if routing_intent_clean.startswith("```json"):
+                        routing_intent_clean = routing_intent_clean[7:-3].strip()
+                    elif routing_intent_clean.startswith("```"):
+                        routing_intent_clean = routing_intent_clean[3:-3].strip()
+                    routing_intent_data = json.loads(routing_intent_clean); is_routing=routing_intent_data.get("is_routing_query") is True; route_origin=routing_intent_data.get("origin"); route_dest=routing_intent_data.get("destination")
                     if isinstance(route_origin,str) and not route_origin.strip(): route_origin=None
                     if isinstance(route_dest,str) and not route_dest.strip(): route_dest=None
                     if is_routing and (not route_origin or not route_dest): is_routing=False; logging.warning("Routing intent but missing origin/dest."); route_origin=None; route_dest=None;
@@ -269,9 +271,14 @@ def ask_assistant():
             raw, err=call_gemini(search_check_prompt, is_json_output=True)
             if err: logging.error(f"Search check fail: {err}"); details["err"]=f"Search check fail: {err}"
             else:
-                try: search_check_clean = raw.strip()
-                    if search_check_clean.startswith("```json"): search_check_clean = search_check_clean[7:-3].strip()
-                    elif search_check_clean.startswith("```"): search_check_clean = search_check_clean[3:-3].strip()
+                try:
+                    search_check_clean = raw.strip()
+                    # *** CORRECTED MULTI-LINE IF/ELIF for search_check_clean ***
+                    if search_check_clean.startswith("```json"):
+                        search_check_clean = search_check_clean[7:-3].strip()
+                    elif search_check_clean.startswith("```"):
+                        search_check_clean = search_check_clean[3:-3].strip()
+                    # *** END CORRECTION ***
                     search_check_data = json.loads(search_check_clean)
                     needed = search_check_data.get("search_needed") is True
                     search_query = search_check_data.get("search_query")
