@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from urllib.parse import quote_plus
 import requests # For WeatherAPI and SearchApi.io calls
 import json     # For parsing Gemini's intent response
-# from duckduckgo_search import DDGS # No longer needed if fully switching
+from duckduckgo_search import DDGS # Fallback Web Search
 from geopy.geocoders import Nominatim # For Routing Geocoding
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError # Geopy exceptions
 import traceback # For logging exception details
@@ -25,7 +25,8 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("requests").setLevel(logging.WARNING) # Can be verbose
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("duckduckgo_search").setLevel(logging.WARNING)
 logging.getLogger("geopy").setLevel(logging.INFO)
 
 # Flask App Initialization
@@ -35,7 +36,7 @@ app = Flask(__name__)
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 GEMINI_MODEL_NAME = os.getenv('GEMINI_MODEL_NAME', 'gemini-1.5-pro-latest')
 WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
-SEARCHAPI_IO_KEY = os.getenv('SEARCHAPI_IO_KEY') # Load SearchApi.io key
+SEARCHAPI_IO_KEY = os.getenv('SEARCHAPI_IO_KEY') # Primary Search API
 model = None
 
 # --- Google Gemini Initialization ---
@@ -50,26 +51,15 @@ else:
         logging.critical(f"FATAL: Error configuring Google Gemini or accessing model '{GEMINI_MODEL_NAME}'. AI disabled. Error: {e}", exc_info=True)
         model = None
 
-if not WEATHER_API_KEY:
-    logging.warning("WEATHER_API_KEY not found. Weather functionality disabled.")
-if not SEARCHAPI_IO_KEY:
-    logging.warning("SEARCHAPI_IO_KEY not found. Web search functionality using SearchApi.io will be disabled.")
+if not WEATHER_API_KEY: logging.warning("WEATHER_API_KEY not found. Weather functionality disabled.")
+if not SEARCHAPI_IO_KEY: logging.warning("SEARCHAPI_IO_KEY not found. Will use DuckDuckGo search as fallback if needed.")
 
 # --- MongoDB Configuration ---
-MONGO_USER = os.getenv('MONGO_USER')
-MONGO_PASSWORD = os.getenv('MONGO_PASSWORD')
-MONGO_HOST = os.getenv('MONGO_HOST')
-MONGO_PORT = os.getenv('MONGO_PORT', '27017')
-MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'friday_assistant_db')
-MONGO_COLLECTION_NAME = os.getenv('MONGO_COLLECTION_NAME', 'interactions')
-MONGO_AUTH_DB = os.getenv('MONGO_AUTH_DB', 'admin')
-
-mongo_client = None
-db = None
-collection = None
+MONGO_USER = os.getenv('MONGO_USER'); MONGO_PASSWORD = os.getenv('MONGO_PASSWORD'); MONGO_HOST = os.getenv('MONGO_HOST'); MONGO_PORT = os.getenv('MONGO_PORT', '27017'); MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'friday_assistant_db'); MONGO_COLLECTION_NAME = os.getenv('MONGO_COLLECTION_NAME', 'interactions'); MONGO_AUTH_DB = os.getenv('MONGO_AUTH_DB', 'admin');
+mongo_client = None; db = None; collection = None
 
 # --- Geocoding Initialization ---
-geolocator = Nominatim(user_agent="FridayAssistantWebApp/1.0 (your-contact@example.com)")
+geolocator = Nominatim(user_agent="FridayAssistantWebApp/1.0 (your.email@example.com)") # PLEASE REPLACE with your app's info
 
 # --- MongoDB Initialization Function ---
 def initialize_mongodb():
@@ -133,64 +123,51 @@ def get_weather(location: str):
     except requests.exceptions.RequestException as e: logging.error(f"Req error weather {location}: {e}"); return None,f"Network error fetching weather: {e}"
     except Exception as e: logging.exception(f"Unexpected weather error {location}: {e}"); return None,"Unexpected error fetching weather."
 
-# --- SearchApi.io Web Search Function ---
+# --- Web Search Function (Chooses based on API Key) ---
 def perform_web_search(query: str, num_results: int = 5):
-    """Performs a web search using SearchApi.io and returns processed results."""
-    if not SEARCHAPI_IO_KEY:
-        logging.warning("Attempted web search, but SEARCHAPI_IO_KEY is not set.")
-        return None, "Search API key (SearchApi.io) not configured."
-
-    search_url = "https://www.searchapi.io/api/v1/search"
-    params = { "engine": "google", "q": query, "api_key": SEARCHAPI_IO_KEY }
-    # Note: 'num_results' or similar parameter handling depends on SearchApi.io's specific API.
-    # Check their documentation if you need to control the number of results.
-    # For now, we'll process up to num_results from what they return by default.
-    headers = {"User-Agent": "FridayAssistantWebApp/1.0"}
-    logging.info(f"Performing web search via SearchApi.io for query: '{query}'")
-
-    try:
-        response = requests.get(search_url, params=params, headers=headers, timeout=20)
-        response.raise_for_status()
-        search_data = response.json()
-        logging.debug(f"SearchApi.io raw response: {json.dumps(search_data, indent=2)[:1000]}...") # Log part of raw response
-
-        processed_results = []
-        # **IMPORTANT**: Adjust these keys based on SearchApi.io's actual response structure for Google results
-        # Common keys are 'organic_results', 'organic', 'web_pages'. Check their docs or a sample response.
-        results_list = search_data.get("organic_results", []) # Default to empty list
-
-        if not results_list and "answer_box" in search_data and search_data["answer_box"]:
-             answer_box = search_data["answer_box"]
-             title = answer_box.get("title", "Direct Answer")
-             snippet = answer_box.get("snippet") or answer_box.get("answer")
-             link = answer_box.get("link", "#")
-             if snippet:
-                  processed_results.append(f"Title: {title}\nLink: {link}\nSnippet: {snippet[:400]}...")
-
-        for result in results_list[:num_results]: # Process up to num_results
-            title = result.get("title", "No title")
-            link = result.get("link", "#")
-            snippet = result.get("snippet", result.get("description")) # Try 'description' if 'snippet' absent
-
-            if not title or not snippet: continue
-            processed_results.append(f"Title: {title}\nLink: {link}\nSnippet: {snippet[:400]}...")
-
-        if not processed_results:
-             logging.warning(f"SearchApi.io for '{query}' returned no usable organic results or answer box.")
-             return "", None # Empty string, no error
-
-        results_string = "\n\n---\n\n".join(processed_results)
-        logging.info(f"SearchApi.io search successful for '{query}'. Found {len(processed_results)} results.")
-        return results_string, None
-
-    except requests.exceptions.Timeout: logging.error(f"Timeout SearchApi.io {query}"); return None, "Web search service (SearchApi.io) timed out."
-    except requests.exceptions.HTTPError as e:
-        status = e.response.status_code; body = e.response.text; logging.error(f"HTTP error SearchApi.io {query}: {e} (Status:{status}), Body:{body[:500]}")
-        if status in [401,403]: return None, "SearchApi.io auth failed. Check API key."
+    if SEARCHAPI_IO_KEY:
+        logging.info(f"Using SearchApi.io for query: '{query}' (num_results hint: {num_results})")
+        search_url = "https://www.searchapi.io/api/v1/search"
+        params = {"engine": "google", "q": query, "api_key": SEARCHAPI_IO_KEY}
+        # Add 'num' if supported by SearchApi.io, their docs vary. Example:
+        # if num_results: params["num"] = str(num_results)
+        headers = {"User-Agent": "FridayAssistantWebApp/1.0"}
+        try:
+            response = requests.get(search_url, params=params, headers=headers, timeout=20)
+            response.raise_for_status()
+            search_data = response.json()
+            logging.debug(f"SearchApi.io raw response (first 500 chars): {json.dumps(search_data)[:500]}...")
+            processed_results = []
+            results_list = search_data.get("organic_results", [])
+            if not results_list and "answer_box" in search_data: # Check answer box if no organic
+                ab = search_data["answer_box"]; title=ab.get("title","Direct Answer"); snippet=ab.get("snippet") or ab.get("answer"); link=ab.get("link","#")
+                if snippet: processed_results.append(f"Title: {title}\nLink: {link}\nSnippet: {snippet[:400]}...")
+            for r in results_list[:num_results]:
+                t=r.get("title","No title"); l=r.get("link","#"); s=r.get("snippet",r.get("description"))
+                if not t or not s: continue
+                processed_results.append(f"Title: {t}\nLink: {l}\nSnippet: {s[:400]}...")
+            if not processed_results: logging.warning(f"SearchApi.io no usable results: '{query}'."); return "", None
+            out_str="\n\n---\n\n".join(processed_results); logging.info(f"SearchApi.io OK: '{query}'. Found {len(processed_results)} results."); return out_str, None
+        except requests.exceptions.Timeout: logging.error(f"Timeout SearchApi.io {query}"); return None, "Web search (SearchApi.io) timed out."
+        except requests.exceptions.HTTPError as e: status=e.response.status_code; body=e.response.text; logging.error(f"HTTP error SearchApi.io {query}: {e} (Status:{status}), Body:{body[:200]}");
+        if status in [401,403]: return None, "SearchApi.io auth failed."
         elif status == 429: return None, "SearchApi.io rate limit exceeded."
         else: return None, f"Error contacting SearchApi.io (HTTP {status})."
-    except requests.exceptions.RequestException as e: logging.error(f"Request error SearchApi.io {query}: {e}"); return None, f"Could not connect to SearchApi.io: {e}"
-    except Exception as e: logging.exception(f"Unexpected error SearchApi.io {query}: {e}"); return None, "Unexpected error during SearchApi.io search."
+        except requests.exceptions.RequestException as e: logging.error(f"Request error SearchApi.io {query}: {e}"); return None, f"Could not connect to SearchApi.io: {e}"
+        except Exception as e: logging.exception(f"Unexpected SearchApi.io error {query}: {e}"); return None, "Unexpected error with SearchApi.io."
+    else: # Fallback to DuckDuckGo
+        logging.info(f"Using DuckDuckGo search for query: '{query}' (max={num_results})")
+        processed=[]; results=[]
+        try:
+            with DDGS(timeout=20) as ddgs: results=list(ddgs.text(query, region='wt-wt', safesearch='moderate', max_results=num_results, backend="lite"))
+            if not results: logging.warning(f"DDGS no results: '{query}'."); return "", None
+            for r in results:
+                s=r.get("body","").strip(); t=r.get("title","No title").strip(); l=r.get("href","#")
+                if not s or not t: continue
+                processed.append(f"Title: {t}\nLink: {l}\nSnippet: {s[:400]}...")
+            if not processed: logging.warning(f"DDGS no usable results: '{query}'."); return "", None
+            out_str="\n\n---\n\n".join(processed); logging.info(f"DDGS OK: '{query}'. Found {len(processed)} results."); return out_str, None
+        except Exception as e: logging.exception(f"DDGS search error: '{query}': {e}"); return None, f"Unexpected error during DDGS search ({type(e).__name__})."
 
 # --- Helper to call Gemini ---
 def call_gemini(prompt: str, is_json_output: bool = False):
@@ -232,17 +209,16 @@ def ask_assistant():
         logging.info(f"Received from {addr}: \"{question}\"")
         final_text=None; details={"type":"general", "intent_ok":None, "weather_call":False, "weather_loc":None, "weather_ok":None, "route_intent":False, "route_origin":None, "route_dest":None, "origin_coords":None, "dest_coords":None, "search_check":False, "search_call":False, "search_q":None, "search_ok":None, "final_src":"unknown", "err":None}
 
-        # === Intent Detection Layer ===
         is_weather, weather_loc = False, None
         is_routing, route_origin, route_dest = False, None, None
 
-        # 1a. Check Weather Intent
         if WEATHER_API_KEY:
             prompt=f"""Analyze user query: "{question}". Is it asking for current weather/forecast? If yes, identify location. ONLY JSON: {{"is_weather_query": boolean, "location": string_or_null}}."""
             raw, err=call_gemini(prompt, is_json_output=True)
             if err: logging.error(f"Weather intent fail: {err}"); details.update({"intent_ok": False, "err": f"Intent fail: {err}"})
             else:
-                try: weather_intent_clean = raw.strip();
+                try:
+                    weather_intent_clean = raw.strip()
                     if weather_intent_clean.startswith("```json"): weather_intent_clean = weather_intent_clean[7:-3].strip()
                     elif weather_intent_clean.startswith("```"): weather_intent_clean = weather_intent_clean[3:-3].strip()
                     weather_intent_data = json.loads(weather_intent_clean); is_weather=weather_intent_data.get("is_weather_query") is True; weather_loc=weather_intent_data.get("location");
@@ -252,15 +228,15 @@ def ask_assistant():
                 except Exception as e: logging.exception(f"Unexpected error processing weather intent JSON: {e}"); details.update({"intent_ok":False, "err":f"Weather JSON processing error: {type(e).__name__}"})
         else: details["intent_ok"] = None
 
-        # 1b. Check Routing Intent (If not weather)
         if not is_weather:
-            prompt=f"""Analyze the user query: "{question}". Is the user asking for directions, a route, or travel path between two locations? If yes, identify the Origin and Destination locations. Respond ONLY with a valid JSON object: {{"is_routing_query": boolean, "origin": string_or_null, "destination": string_or_null}}"""
+            prompt=f"""Analyze the user query: "{question}". Is user asking for directions/route between two locations? If yes, identify Origin & Destination. ONLY JSON: {{"is_routing_query": boolean, "origin": string_or_null, "destination": string_or_null}}"""
             raw, err=call_gemini(prompt, is_json_output=True)
             if not err:
-                try: routing_intent_clean=raw.strip();
-                    if routing_intent_clean.startswith("```json"): routing_intent_clean=routing_intent_clean[7:-3].strip()
-                    elif routing_intent_clean.startswith("```"): routing_intent_clean=routing_intent_clean[3:-3].strip()
-                    routing_intent_data=json.loads(routing_intent_clean); is_routing=routing_intent_data.get("is_routing_query") is True; route_origin=routing_intent_data.get("origin"); route_dest=routing_intent_data.get("destination")
+                try:
+                    routing_intent_clean = raw.strip();
+                    if routing_intent_clean.startswith("```json"): routing_intent_clean = routing_intent_clean[7:-3].strip()
+                    elif routing_intent_clean.startswith("```"): routing_intent_clean = routing_intent_clean[3:-3].strip()
+                    routing_intent_data = json.loads(routing_intent_clean); is_routing=routing_intent_data.get("is_routing_query") is True; route_origin=routing_intent_data.get("origin"); route_dest=routing_intent_data.get("destination")
                     if isinstance(route_origin,str) and not route_origin.strip(): route_origin=None
                     if isinstance(route_dest,str) and not route_dest.strip(): route_dest=None
                     if is_routing and (not route_origin or not route_dest): is_routing=False; logging.warning("Routing intent but missing origin/dest."); route_origin=None; route_dest=None;
@@ -269,7 +245,6 @@ def ask_assistant():
                 except Exception as e: logging.exception(f"Unexpected error processing routing intent JSON: {e}"); details.update({"route_intent":False, "err":f"Routing JSON processing error: {type(e).__name__}"})
             else: logging.error(f"Routing intent fail: {err}"); details["err"]=f"Routing intent fail: {err}"
 
-        # === Step 2: Handle Specific Intents ===
         if is_weather and weather_loc and WEATHER_API_KEY:
              details.update({"type":"weather", "weather_loc":weather_loc, "weather_call":True}); logging.info(f"Calling WeatherAPI: '{weather_loc}'")
              w_data, w_err = get_weather(weather_loc)
@@ -305,8 +280,7 @@ def ask_assistant():
                  if len(final_text) > 150: logging.warning("AI generated long intro for route map, using fallback."); final_text = f"Showing map for {route_origin} to {route_dest}."
                  details["final_src"]="routing_map_intro_ai"
 
-        # === Step 3: Fallback to Search or General AI ===
-        if final_text is None:
+        if final_text is None: # Fallback to Search or General AI
             details["search_check"]=True; needed, search_query=False, None
             search_check_prompt=f"""Analyze the user's query. Does answering it likely require searching the internet for current information (today/yesterday), recent events, specific facts (stock prices, scores), or details beyond common knowledge? If the query specifically mentions "GitHub" and a username, try to formulate a search query that might directly land on their repository listing page or a page likely to list some repositories. User Query: "{question}". Respond ONLY with a valid JSON object: {{"search_needed": boolean, "search_query": string_or_null (Example for GitHub: "site:github.com [username] repositories". Otherwise, null.)}}"""
             raw, err=call_gemini(search_check_prompt, is_json_output=True)
@@ -322,10 +296,10 @@ def ask_assistant():
                     details["search_q"]=search_query; logging.info(f"Search check: needed={needed}, query='{search_query}'")
                 except json.JSONDecodeError as json_err: logging.error(f"Search check JSON decode error: {json_err}. Raw: {raw}", exc_info=False); details["err"]=f"Search JSON parse error: {json_err}"
                 except Exception as e: logging.exception(f"Unexpected error processing search check JSON: {e}"); details["err"]=f"Search JSON processing error: {type(e).__name__}"
-            # Perform Search (Switched to SearchApi.io if key is present)
+
             if needed and search_query:
                 details.update({"type":"search", "search_call":True}); logging.info(f"Search query: '{search_query}'")
-                s_res, s_err = perform_web_search(search_query, num_results=5) # Using SearchApi.io
+                s_res, s_err=perform_web_search(search_query, num_results=5)
                 if s_err: details.update({"search_ok":False, "err":s_err}); logging.error(f"Search function error: {s_err}"); prompt=f"Friday: Inform user politely of technical problem searching web regarding '{search_query}'. Internal error: '{s_err}'. Apologize."; resp,_=call_gemini(prompt); final_text=resp or f"Sorry, tech issue searching: {s_err}"; details["final_src"]="search_func_err_ai"
                 else:
                     details["search_ok"]=True;
@@ -333,15 +307,14 @@ def ask_assistant():
                     resp, err=call_gemini(prompt)
                     if err: logging.error(f"AI search synthesis fail: {err}"); final_text=f"Looked online for '{search_query}' but trouble summarizing."; details.update({"err":err, "final_src":"search_synth_err"})
                     else: final_text=resp; details["final_src"]="search_ai_gen"
-            # General Fallback
-            if final_text is None:
-                logging.info("Handling as general query (fallback)..."); details["type"]="general"
+
+            if final_text is None: # General Fallback if search wasn't needed or failed
+                logging.info("Handling as general query (ultimate fallback)..."); details["type"]="general"
                 prompt=f"You are Friday, providing clear answers. User question: {question}. Answer concisely from general knowledge. Note if info might be dated."
                 resp, err=call_gemini(prompt)
                 if err: logging.error(f"General AI fail: {err}"); final_text=f"Sorry, issue processing: {err}"; details.update({"err":err, "final_src":"general_ai_err"})
                 else: final_text=resp; details["final_src"]="general_ai_gen"
 
-        # --- Final Response & DB ---
         final_text=final_text or "My apologies, I couldn't generate a suitable response."
         end=datetime.now(timezone.utc); time=(end - start).total_seconds()
         logging.info(f"Req from {addr} processed in {time:.2f}s. Source: {details['final_src']}")
