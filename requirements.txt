@@ -1,11 +1,10 @@
 # requirements.txt
-
 Flask>=2.3.0
-google-generativeai>=0.5.0 # Use latest stable version
+google-generativeai>=0.5.0
 pymongo[srv]>=4.0
 python-dotenv>=1.0.0
 requests>=2.28.0
-duckduckgo-search>=5.0.0
+# duckduckgo-search>=5.0.0 # REMOVE IF NOT USED
 geopy>=2.4.0
 urllib3
-pyopenssl>=23.0.0 # Only if using dev HTTPS server
+pyopenssl>=23.0.0
