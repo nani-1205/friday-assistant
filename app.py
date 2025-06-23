@@ -129,8 +129,6 @@ def perform_web_search(query: str, num_results: int = 5):
         logging.info(f"Using SearchApi.io for query: '{query}' (num_results hint: {num_results})")
         search_url = "https://www.searchapi.io/api/v1/search"
         params = {"engine": "google", "q": query, "api_key": SEARCHAPI_IO_KEY}
-        # Add 'num' if supported by SearchApi.io, their docs vary. Example:
-        # if num_results: params["num"] = str(num_results)
         headers = {"User-Agent": "FridayAssistantWebApp/1.0"}
         try:
             response = requests.get(search_url, params=params, headers=headers, timeout=20)
@@ -139,7 +137,7 @@ def perform_web_search(query: str, num_results: int = 5):
             logging.debug(f"SearchApi.io raw response (first 500 chars): {json.dumps(search_data)[:500]}...")
             processed_results = []
             results_list = search_data.get("organic_results", [])
-            if not results_list and "answer_box" in search_data: # Check answer box if no organic
+            if not results_list and "answer_box" in search_data:
                 ab = search_data["answer_box"]; title=ab.get("title","Direct Answer"); snippet=ab.get("snippet") or ab.get("answer"); link=ab.get("link","#")
                 if snippet: processed_results.append(f"Title: {title}\nLink: {link}\nSnippet: {snippet[:400]}...")
             for r in results_list[:num_results]:
@@ -148,13 +146,20 @@ def perform_web_search(query: str, num_results: int = 5):
                 processed_results.append(f"Title: {t}\nLink: {l}\nSnippet: {s[:400]}...")
             if not processed_results: logging.warning(f"SearchApi.io no usable results: '{query}'."); return "", None
             out_str="\n\n---\n\n".join(processed_results); logging.info(f"SearchApi.io OK: '{query}'. Found {len(processed_results)} results."); return out_str, None
-        except requests.exceptions.Timeout: logging.error(f"Timeout SearchApi.io {query}"); return None, "Web search (SearchApi.io) timed out."
-        except requests.exceptions.HTTPError as e: status=e.response.status_code; body=e.response.text; logging.error(f"HTTP error SearchApi.io {query}: {e} (Status:{status}), Body:{body[:200]}");
-        if status in [401,403]: return None, "SearchApi.io auth failed."
-        elif status == 429: return None, "SearchApi.io rate limit exceeded."
-        else: return None, f"Error contacting SearchApi.io (HTTP {status})."
-        except requests.exceptions.RequestException as e: logging.error(f"Request error SearchApi.io {query}: {e}"); return None, f"Could not connect to SearchApi.io: {e}"
-        except Exception as e: logging.exception(f"Unexpected SearchApi.io error {query}: {e}"); return None, "Unexpected error with SearchApi.io."
+        except requests.exceptions.Timeout:
+            logging.error(f"Timeout SearchApi.io {query}")
+            return None, "Web search service (SearchApi.io) timed out."
+        except requests.exceptions.HTTPError as e:
+            status=e.response.status_code; body=e.response.text; logging.error(f"HTTP error SearchApi.io {query}: {e} (Status:{status}), Body:{body[:200]}")
+            if status in [401,403]: return None, "SearchApi.io auth failed. Check API key."
+            elif status == 429: return None, "SearchApi.io rate limit exceeded."
+            else: return None, f"Error contacting SearchApi.io (HTTP {status})."
+        except requests.exceptions.RequestException as e: # CORRECTED BLOCK
+            logging.error(f"Request error SearchApi.io {query}: {e}")
+            return None, f"Could not connect to SearchApi.io: {e}"
+        except Exception as e:
+            logging.exception(f"Unexpected SearchApi.io error {query}: {e}")
+            return None, "Unexpected error with SearchApi.io."
     else: # Fallback to DuckDuckGo
         logging.info(f"Using DuckDuckGo search for query: '{query}' (max={num_results})")
         processed=[]; results=[]
@@ -171,7 +176,7 @@ def perform_web_search(query: str, num_results: int = 5):
 
 # --- Helper to call Gemini ---
 def call_gemini(prompt: str, is_json_output: bool = False):
-    if not model: logging.error("call_gemini: AI Model unavailable."); return None, "AI Model unavailable."
+    if not model: logging.error("call_gemini: AI Model unavailable."); return None, "AI Model unavailable." # Ensure tuple return
     mime="application/json" if is_json_output else "text/plain"; sample=prompt.replace('\n',' ')[:150]
     logging.debug(f"Calling Gemini (Out: {mime}). Len: {len(prompt)}. Sample: {sample}...")
     try:
@@ -286,7 +291,8 @@ def ask_assistant():
             raw, err=call_gemini(search_check_prompt, is_json_output=True)
             if err: logging.error(f"Search check fail: {err}"); details["err"]=f"Search check fail: {err}"
             else:
-                try: search_check_clean = raw.strip()
+                try:
+                    search_check_clean = raw.strip()
                     if search_check_clean.startswith("```json"): search_check_clean = search_check_clean[7:-3].strip()
                     elif search_check_clean.startswith("```"): search_check_clean = search_check_clean[3:-3].strip()
                     search_check_data = json.loads(search_check_clean)
