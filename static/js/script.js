@@ -5,18 +5,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // General UI
     const statusTextElement = document.getElementById('status-text');
     const statusDotElement = document.querySelector('.status-dot');
-    const arcReactor = document.getElementById('arc-reactor');
+    const arcReactor = document.getElementById('arc-reactor'); // Declared once at the top
     const menuItems = document.querySelectorAll('.menu-item');
     const views = document.querySelectorAll('.dashboard, .view-container'); // All main views
+    const dashboardView = document.getElementById('dashboard-view'); // Specific dashboard view
 
     // Chat View Specific Elements
     const chatContainer = document.getElementById('chat-view'); // The main chat view container
-    const chatMessagesContainer = document.getElementById('chat-message-list'); // Where messages go
+    const chatMessagesContainer = document.getElementById('chat-message-list');
     const chatUserInput = document.getElementById('user-input'); // Input in chat view's input container
     const chatSendButton = document.getElementById('send-button');   // Send button in chat view's input container
     const chatListenButton = document.getElementById('listen-button'); // Listen button in chat view's input container
 
-    console.log(`[DEBUG] Elements: chatMsgs=${!!chatMessagesContainer}, chatInput=${!!chatUserInput}, chatSendBtn=${!!chatSendButton}, chatListenBtn=${!!chatListenButton}, statusText=${!!statusTextElement}`);
+    console.log(`[DEBUG] Elements: chatMsgs=${!!chatMessagesContainer}, chatInput=${!!chatUserInput}, chatSendBtn=${!!chatSendButton}, chatListenBtn=${!!chatListenButton}, statusText=${!!statusTextElement}, arcReactor=${!!arcReactor}`);
 
     // --- State Variables ---
     let recognition = null; let isListening = false; let synth = window.speechSynthesis;
@@ -45,10 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!selectedVoice) selectedVoice = availableVoices.find(v => v.lang === targetLang);
                 if (!selectedVoice) selectedVoice = availableVoices.find(v => v.default && v.lang.startsWith('en'));
                 if (!selectedVoice && availableVoices.length > 0) selectedVoice = availableVoices[0];
-                if (selectedVoice) console.log(`[DEBUG] Selected Voice: ${selectedVoice.name} (Lang: ${selectedVoice.lang}, Local: ${selectedVoice.localService})`);
-                else console.warn("[DEBUG] Could not find a suitable voice. Using browser default.");
+                if (selectedVoice) console.log(`[DEBUG] Selected Voice: ${selectedVoice.name}`); else console.warn("[DEBUG] Suitable voice not found.");
             }, 150);
-        } catch (error) { console.error("[DEBUG] Error getting/processing voices:", error); }
+        } catch (error) { console.error("[DEBUG] Error getting voices:", error); }
     }
 
     // --- Initial Checks & Setup ---
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  requestAnimationFrame(() => targetView.classList.add('active-view')); // Add class for fade-in
                  if (targetViewId === 'chat-view' && chatUserInput) chatUserInput.focus();
             } else {
-                 console.error("Target view not found for ID:", targetViewId);
+                 console.error("[DEBUG] Target view not found for ID:", targetViewId);
                  // *** CORRECTED FALLBACK LOGIC ***
                  const dashboardFallback = document.getElementById('dashboard-view');
                  if (dashboardFallback) {
@@ -122,7 +122,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }); // End menuItems.forEach
-    const arcReactor = document.getElementById('arc-reactor'); if(arcReactor) { arcReactor.addEventListener('click', function() { createNotification('Arc Reactor Status', 'Power levels nominal. Diagnostics running...'); }); console.log("[DEBUG] Arc Reactor listener attached."); } else console.warn("[DEBUG] Arc Reactor element missing.");
+
+    // *** CORRECTED Arc Reactor Listener ***
+    // Use the 'arcReactor' variable declared at the top of the script
+    if(arcReactor) {
+        arcReactor.addEventListener('click', function() {
+            createNotification('Arc Reactor Status', 'Power levels nominal. Diagnostics running...');
+        });
+        console.log("[DEBUG] Arc Reactor listener attached.");
+    } else {
+        console.warn("[DEBUG] Arc Reactor element (ID: 'arc-reactor') not found in DOM.");
+    }
+    // *** END CORRECTION ***
 
 
     // --- Core Functions ---
@@ -260,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`[DEBUG] sendMessage initiated for question: "${question}"`);
         try {
             const response = await fetch('/ask', { method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify({ question: question }) });
-            console.log(`[DEBUG] Fetch status: ${response.status}`);
+            console.log(`[DEBUG] Fetch response status: ${response.status}`);
             let data = null; try { data = await response.json(); console.log("[DEBUG] Received data:", data); } catch (jsonError){ console.error("[DEBUG] JSON Parse Error:", jsonError); data = { error: `Invalid response (Status: ${response.status})` };}
 
             if (!response.ok || (data && data.error)) { const errorMsg = `Error: ${data.error || response.statusText || 'Unknown'}`; console.error('[DEBUG] Server/App Error:', response.status, data); createNotification("Processing Error", errorMsg, "error"); addOutputToChat('message', { sender: 'friday', text: `Sorry, encountered an error.` }); }
@@ -298,8 +309,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initial Page Load Setup ---
     updateStatus('SYSTEMS ONLINE'); // Set initial status
-    if(dashboardView) { dashboardView.style.display = 'block'; dashboardView.classList.add('active-view'); } // Show dashboard initially
-    document.getElementById('current-year').textContent = new Date().getFullYear(); // Set footer year
+    // Show dashboard initially and make its menu item active
+    if(dashboardView) {
+        dashboardView.style.display = 'block';
+        dashboardView.classList.add('active-view');
+        // Find the dashboard menu item and set it as active
+        const dashboardMenuItem = document.querySelector('.menu-item[data-view="dashboard-view"]');
+        if(dashboardMenuItem) dashboardMenuItem.classList.add('active');
+    } else {
+        console.warn("[DEBUG] Dashboard view element not found on initial load.")
+    }
+    // Focus chat input by default if that's the intended primary interaction
+    // If dashboard is default, maybe don't focus chat input unless chat view is active.
+    // if(chatUserInput && chatContainer?.style.display !== 'none') chatUserInput.focus();
+
+    // Initial greeting for chat (only if chat is the default view or when switched to)
+    // For now, let's add it when the chat view is activated by the sidebar.
+    // The current year in the footer:
+    const currentYearSpan = document.getElementById('current-year');
+    if (currentYearSpan) currentYearSpan.textContent = new Date().getFullYear();
+
     console.log("[DEBUG] Initial setup complete.");
 
 }); // End DOMContentLoaded
